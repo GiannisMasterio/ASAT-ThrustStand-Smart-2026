@@ -15,10 +15,13 @@ constexpr const char* WINDOW_NAME = "Asat ThrustStand Smart";
 
 constexpr const char* ICONPATH = "./assets/AsatIcon.ico";
 constexpr const char* ICONPATHPNG = "./assets/AsatIcon.png";
+constexpr const char* EXPERIMENT_MODE_ICONPATH = "./assets/ExperimentModeIcon.png";
+constexpr const char* BASIC_MODE_ICONPATH = "./assets/BasicModeIcon.png";
 constexpr const char* EXPERIMENT_RUNNING_ICONPATH = "./assets/ExperimentRunningIcon.png";
 constexpr const char* EXPERIMENT_NOT_RUNNING_ICONPATH = "./assets/ExperimentNotRunningIcon.png";
 constexpr const char* GRAPHICONPATH = "./assets/GraphIcon.png";
 constexpr const char* SETTINGSICONPATH = "./assets/SettingsIcon.png";
+constexpr const char* SAVEICONPATH = "./assets/SaveIcon.png";
 constexpr const char* PROPELLERICONPATH = "./assets/PropellerIcon.png";
 constexpr const char* HOMEICONPATH = "./assets/HomeIcon.png";
 constexpr const char* HOMESCENE_BG = "./assets/HomeScreenBG.png";

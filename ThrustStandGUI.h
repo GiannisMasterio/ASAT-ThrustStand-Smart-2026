@@ -29,6 +29,8 @@ struct GraphDataPoint {
     double value;
 };
 
+enum IconType { Mode, Scene, EscapeExperiment, Propeller , Settings, Save};
+
 class Containers;
 
 class ThrustStandGUI : public QMainWindow
@@ -65,15 +67,17 @@ private slots:
     void on_closing();
     void graphicUpdates();
     void updateMqttData();
-    void chooseExcelLocation();
-    void openExcelFile();
-    void chooseComPort();
+    void chooseLogLocation();
+    void openLogFile();
+    void serial_control();
     void confirmPort();
     void escapeExperiment();
     void changeFunctionMode();
     void changeScene();
 
     void chooseSettings();
+    void saveSettings();
+    void serial_sendCommand(QString command);
 
     void onHomeButtonClicked(const QString& mode);
 
@@ -129,6 +133,9 @@ private:
     QString serial = "SERIAL";
     QString selected_source = mqtt;
 
+    QPushButton* firstIconButton;
+    QString first_icon_path = EXPERIMENT_MODE_ICONPATH;
+
     QPushButton* secondIconButton;
     QString second_icon_path = GRAPHICONPATH;
 
@@ -167,16 +174,21 @@ private:
     double angle_of_attack = DEFAULT_AOA;
     double airspeed = DEFAULT_AIRSPEED;
 
-    QString excel_file_path = "ASAT ThrustStand Records.csv";
+    QString log_file_path = "ASAT ThrustStand Records.csv";
+    QString save_file_path = "ASAT ThrustStandSmart Save.txt";
     QFile* log_file = nullptr;
+    QFile* save_file = nullptr;
 
     QFrame* createBottomToolbar();
 
     void createHomeScene();
     void createMainScene();
     void createGraphScene();
+
+    void loadSettings();
+
     void set_colors();
-    void initExcelFile();
+    void initLogFile();
     void start_mqtt();
     void disconnect_mqtt();
     void customizeExperiment();

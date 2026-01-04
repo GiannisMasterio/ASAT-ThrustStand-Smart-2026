@@ -51,7 +51,8 @@ ThrustStandGUI::ThrustStandGUI(QWidget* parent) : QMainWindow(parent)
     mqtt_data_timer = new QTimer(this);
 
     createHomeScene();
-    initExcelFile();
+    loadSettings();
+    initLogFile();
     connect(graphic_timer, &QTimer::timeout, this, &ThrustStandGUI::graphicUpdates);
     connect(mqtt_data_timer, &QTimer::timeout, this, &ThrustStandGUI::updateMqttData);
     mqtt_data_timer->start(MQTT_DELAY);
@@ -176,6 +177,14 @@ void ThrustStandGUI::createHomeScene() {
 void ThrustStandGUI::onHomeButtonClicked(const QString& mode) {
 
     function_mode = mode;
+
+    if (function_mode == "Basic") {
+        first_icon_path = BASIC_MODE_ICONPATH;
+    }
+    else {
+        first_icon_path = EXPERIMENT_MODE_ICONPATH;
+    }
+
     this->createMainScene();
 
 }
@@ -184,7 +193,7 @@ QFrame* ThrustStandGUI::createBottomToolbar() {
 
     QFrame* toolbarFrame = new QFrame();
     toolbarFrame->setFixedHeight(100); 
-    toolbarFrame->setFixedWidth(INITIAL_RESOLUTION_ARR[0]);
+    toolbarFrame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     toolbarFrame->setStyleSheet(
         "QFrame {"
         "   background-image: none;"          
@@ -200,55 +209,53 @@ QFrame* ThrustStandGUI::createBottomToolbar() {
     toolbarLayout->setContentsMargins(20, 0, 20, 0);
     toolbarLayout->setSpacing(10);
 
-    auto createIcon = [&](const QString& iconPath) {
+    auto createIcon = [&](const QString& iconPath, IconType type) {
         QPushButton* btn = new QPushButton();
         btn->setFixedSize(90, 90);
         btn->setIcon(QIcon(iconPath));
         btn->setIconSize(QSize(70, 70));
         btn->setStyleSheet(
-            "QPushButton {"
-            "   background: transparent;"
-            "   border: none;"
-            "   border-radius: 10px;"
-            "}"
-            "QPushButton:hover {"
-            "   background-color: rgba(255, 255, 255, 30);" 
-            "}"
-        );
+            "QPushButton {" "   background: transparent;" "   border: none;" "   border-radius: 10px;" "}"
+            "QPushButton:hover {" "   background-color: rgba(255, 255, 255, 30);"  "}" );
 
-        if (iconPath== ICONPATHPNG) QObject::connect(btn, SIGNAL(clicked()), this, SLOT(changeFunctionMode()));
-
-        if (iconPath == second_icon_path) {
+        switch (type) {
+         case Mode:
+            firstIconButton = btn;
+            QObject::connect(btn, SIGNAL(clicked()), this, SLOT(changeFunctionMode()));
+            break;
+         case Scene:
             secondIconButton = btn;
             QObject::connect(btn, SIGNAL(clicked()), this, SLOT(changeScene()));
-        }
-        if (iconPath == third_icon_path) {
+            break;
+         case EscapeExperiment:
             thirdIconButton = btn;
             QObject::connect(btn, SIGNAL(clicked()), this, SLOT(escapeExperiment()));
-        }
-
-        if (iconPath == SETTINGSICONPATH) {
+            break;
+         case Settings:
             QObject::connect(btn, SIGNAL(clicked()), this, SLOT(chooseSettings()));
+            break;
+         case Propeller:
+            // Μελλοντικό
+            break;
+         case Save:
+             QObject::connect(btn, SIGNAL(clicked()), this, SLOT(saveSettings()));
+             break;
         }
-
-        if (iconPath == PROPELLERICONPATH) {
-                //QObject::connect(btn, SIGNAL(clicked()), this, SLOT(chooseSettings()));
-            }
 
         return btn;
 
         };
 
-    toolbarLayout->addWidget(createIcon(ICONPATHPNG));
-    toolbarLayout->addWidget(createIcon(second_icon_path));
-    toolbarLayout->addWidget(createIcon(third_icon_path));
-    //toolbarLayout->addWidget(createIcon(PROPELLERICONPATH));
+    toolbarLayout->addWidget(createIcon(first_icon_path, Mode));
+    toolbarLayout->addWidget(createIcon(second_icon_path, Scene));
+    toolbarLayout->addWidget(createIcon(third_icon_path, EscapeExperiment));
+    //toolbarLayout->addWidget(createIcon(PROPELLERICONPATH, Propeller));
 
     toolbarLayout->addStretch(2); 
 
     auto createBottomButton = [&](const QString& text, const char* slot) {
         QPushButton* btn = new QPushButton(text);
-        if (text == "Choose XCel Location")
+        if (text == "Choose Log Location") // χρειαζεται περισσοτερο χωρο το συγκεκριμενο
          btn->setFixedSize(310, 70);
         else btn->setFixedSize(270, 70);
         btn->setStyleSheet(HOVERED_STYLE);
@@ -256,10 +263,13 @@ QFrame* ThrustStandGUI::createBottomToolbar() {
         return btn;
         };
 
-    toolbarLayout->addWidget(createBottomButton("Open Excel File", SLOT(openExcelFile())));
-    toolbarLayout->addWidget(createBottomButton("Choose XCel Location", SLOT(chooseExcelLocation())));
-    toolbarLayout->addWidget(createBottomButton("Choose Com Port", SLOT(chooseComPort())));
-    toolbarLayout->addWidget(createIcon(SETTINGSICONPATH));
+    
+    toolbarLayout->addWidget(createBottomButton("Open Log File", SLOT(openLogFile())));
+    toolbarLayout->addWidget(createBottomButton("Choose Log Location", SLOT(chooseLogLocation())));
+    toolbarLayout->addWidget(createBottomButton("Serial Control", SLOT(serial_control())));
+    toolbarLayout->addWidget(createIcon(SAVEICONPATH, Save));
+    toolbarLayout->addWidget(createIcon(SETTINGSICONPATH, Settings));
+    
 
     return toolbarFrame;
 }
@@ -282,6 +292,16 @@ void ThrustStandGUI::updateBottomToolbar() {
         second_icon_path = GRAPHICONPATH;
     }
 
+    if (firstIconButton) {
+        if (function_mode == "Basic") {
+            first_icon_path = BASIC_MODE_ICONPATH;
+        }
+        else {
+            first_icon_path = EXPERIMENT_MODE_ICONPATH;
+        }
+        firstIconButton->setIcon(QIcon(first_icon_path));
+    }
+
     if (secondIconButton) {
         secondIconButton->setIcon(QIcon(second_icon_path));
     }
@@ -302,6 +322,7 @@ void ThrustStandGUI::createMainScene() {
     graphic_timer->stop();
 
     if (centralWidget()) {
+        firstIconButton = nullptr;
         secondIconButton = nullptr; 
         thirdIconButton = nullptr;
         delete centralWidget();
@@ -338,7 +359,6 @@ void ThrustStandGUI::createMainScene() {
     instantthrottleGUI = new Containers("Instant Throttle", 74, "white", current_throttle, false, function_mode, this, topSection);
     instantpowerGUI = new Containers("Instant Power", 70, "white", current_power, false, function_mode, this, topSection);
 
-   
     // απαραιτητο connect για να στελνονται τα μυνηματα
     if (instantthrottleGUI->getModeHandler()) {
         connect(instantthrottleGUI->getModeHandler(), &ModeHandler::publishMqtt,
@@ -418,11 +438,13 @@ void ThrustStandGUI::changeFunctionMode() {
 
         if (function_mode == "Basic") {
             function_mode = "Experiment";
+            this->updateBottomToolbar();
             this->createMainScene();
         }
 
         else if (function_mode == "Experiment") {
             function_mode = "Basic";
+            this->updateBottomToolbar();
             this->createMainScene();
         }
 
@@ -628,7 +650,7 @@ void ThrustStandGUI::logToFile(bool status) {
     if (status) {
         int label_width = 30;
         if (log_file == nullptr) {
-            log_file = new QFile(excel_file_path, this );
+            log_file = new QFile(log_file_path, this );
            
             bool file_exists = log_file->exists();
             if (!log_file->open(QIODevice::Append | QIODevice::Text)) {
@@ -762,25 +784,36 @@ void ThrustStandGUI::readSerialData() {
             QString serialData = QString::fromUtf8(data).trimmed();
             qDebug() << "Full Line Received:" << serialData;
             processData(serialData, "SERIAL");
+         
         }
     }
 }
 
-void ThrustStandGUI::chooseComPort() {
+void ThrustStandGUI::serial_sendCommand(QString command) {
+    if (serial_port && serial_port->isOpen()) {
+        serial_port->write(command.toUtf8() + "\n");
+        qDebug() << "Sent command:" << command;
+    }
+}
 
+void ThrustStandGUI::serial_control() {
     QWidget* selection_window = new QWidget(nullptr, Qt::Window);
-    selection_window->setWindowTitle("Select COM Port");
-    selection_window->setFixedSize(600, 400);
+    selection_window->setWindowTitle("Serial Control");
+    selection_window->setFixedSize(600, 500);
     selection_window->setWindowModality(Qt::ApplicationModal);
     selection_window->setAttribute(Qt::WA_DeleteOnClose);
     selection_window->setWindowIcon(QIcon(ICONPATH));
 
-
     QVBoxLayout* layout = new QVBoxLayout(selection_window);
+    QFont labelFont("Arial", 14, QFont::Bold);
+    QFont widgetFont("Arial", 11);
 
     QLabel* label1 = new QLabel("Available COM Ports:", selection_window);
-    QComboBox* dropdown1 = new QComboBox(selection_window);
+    label1->setFont(labelFont);
+    layout->addWidget(label1);
 
+    QComboBox* dropdown1 = new QComboBox(selection_window);
+    dropdown1->setFont(widgetFont);
     QStringList ports;
     for (const QSerialPortInfo& info : QSerialPortInfo::availablePorts()) {
         ports << info.portName();
@@ -789,28 +822,64 @@ void ThrustStandGUI::chooseComPort() {
     if (!com_port.isEmpty() && ports.contains(com_port)) {
         dropdown1->setCurrentText(com_port);
     }
+    layout->addWidget(dropdown1);
 
     QLabel* label2 = new QLabel("Choose Baudrate:", selection_window);
+    label2->setFont(labelFont);
+    layout->addWidget(label2);
+
     QComboBox* dropdown2 = new QComboBox(selection_window);
-    
+    dropdown2->setFont(widgetFont);
     dropdown2->addItems(baudrates);
     dropdown2->setCurrentText(QString::number(baudrate));
-
-    QPushButton* confirmButton = new QPushButton("Select", selection_window);
-    confirmButton->setStyleSheet(HOVERED_STYLE);
-
-    layout->addWidget(label1);
-    layout->addWidget(dropdown1);
-    layout->addWidget(label2);
     layout->addWidget(dropdown2);
+
+    QPushButton* confirmButton = new QPushButton("Connect", selection_window);
+    confirmButton->setFont(widgetFont);
+    confirmButton->setStyleSheet(HOVERED_STYLE);
     layout->addWidget(confirmButton);
 
-    connect(confirmButton, &QPushButton::clicked, this, [this, dropdown1, dropdown2, selection_window]() {
+    QFrame* line = new QFrame();
+    line->setFrameShape(QFrame::HLine);
+    line->setFrameShadow(QFrame::Sunken);
+    layout->addWidget(line);
+
+    QLabel* label3 = new QLabel("Send Command:", selection_window);
+    label3->setFont(labelFont);
+    layout->addWidget(label3);
+
+    QLineEdit* commandInput = new QLineEdit(selection_window);
+    commandInput->setFont(widgetFont);
+    commandInput->setPlaceholderText("Enter command...");
+    layout->addWidget(commandInput);
+
+    QPushButton* sendButton = new QPushButton("Send", selection_window);
+    sendButton->setFont(widgetFont);
+    sendButton->setEnabled(false);
+    layout->addWidget(sendButton);
+
+    connect(confirmButton, &QPushButton::clicked, this, [=]() {
         com_port = dropdown1->currentText();
         baudrate = dropdown2->currentText().toInt();
         confirmPort();
-        selection_window->close();
+
+        if (serial_port && serial_port->isOpen()) {
+            sendButton->setEnabled(true);
+            confirmButton->setText("Connected ✓");
+            confirmButton->setStyleSheet("background-color: green; color: white; font-weight: bold;");
+        }
         });
+
+    auto sendAction = [=]() {
+        QString cmd = commandInput->text();
+        if (!cmd.isEmpty()) {
+            serial_sendCommand(cmd);
+            commandInput->clear();
+        }
+        };
+
+    connect(sendButton, &QPushButton::clicked, this, sendAction);
+    connect(commandInput, &QLineEdit::returnPressed, this, sendAction);
 
     selection_window->show();
 }
@@ -984,8 +1053,100 @@ void ThrustStandGUI::chooseSettings() {
     settings_window->show();
 }
 
-void ThrustStandGUI::initExcelFile() {
-    QString fullPath = excel_file_path;
+void ThrustStandGUI::loadSettings() {
+    QFile file(save_file_path);
+
+    if (!file.exists()) {
+        qDebug() << "No settings file found. Using defaults.";
+        return;
+    }
+
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qWarning() << "Could not open settings file for reading.";
+        return;
+    }
+
+    QTextStream in(&file);
+    while (!in.atEnd()) {
+        QString line = in.readLine();
+
+        QStringList parts = line.split(":");
+        if (parts.size() < 2) continue; 
+
+        QString key = parts.at(0).trimmed();
+        QString valueWithUnit = parts.at(1).trimmed();
+
+        QString value = valueWithUnit.split(" ").at(0);
+
+        if (key == "Data Source")               selected_source = value;
+        else if (key == "Receive Topic")        mqtt_receive_topic = value;
+        else if (key == "Send Topic")           mqtt_send_topic = value;
+        else if (key == "Propeller Name")       propeller_name = value;
+        else if (key == "Angle Of Attack")      angle_of_attack = value.toDouble();
+        else if (key == "Airspeed")             airspeed = value.toDouble();
+        else if (key == "Max RPM")              max_rpm = value.toDouble();
+        else if (key == "RPM Division")         rpm_div = value.toDouble();
+        else if (key == "RPM Clemency")         rpm_clemency = value.toDouble();
+        else if (key == "Throttle Increase Step") throttle_increase_step = value.toDouble();
+        else if (key == "Thrust Stabilizing WaitTime (ms)") thrust_stab_wait_time_ms = value.toInt();
+        else if (key == "Wait After Thrust (ms)") stage4_wait_time_ms = value.toInt();
+        else if (key == "Min Throttle")         min_throttle = value.toDouble();
+        else if (key == "Max Throttle")         max_throttle = value.toDouble();
+        else if (key == "Current Limit")        current_limit = value.toInt();
+        else if (key == "Thrust Offset")        thrust_offset = value.toDouble();
+    }
+
+    file.close();
+    qDebug() << "Settings loaded successfully!";
+}
+
+void ThrustStandGUI::saveSettings() {
+
+    int label_width = 30;
+
+    if (save_file == nullptr) {
+        save_file = new QFile(save_file_path, this);
+
+        if (!save_file->open(QIODevice::Append | QIODevice::Text)) {
+            delete save_file;
+            save_file = nullptr;
+            return;
+        }
+        QTextStream out(save_file);
+        out << "\nLast Save Settings Session: "
+            << QDateTime::currentDateTime().toString("dd/MM/yyyy HH:mm:ss")
+            << "\n";
+    }
+
+    QTextStream out(save_file);
+    QString timestamp = QDateTime::currentDateTime().toString("HH:mm:ss");
+
+    out << QString("%1 : %2\n").arg("Data Source", -label_width).arg(selected_source);
+    out << QString("%1 : %2\n").arg("Receive Topic", -label_width).arg(mqtt_receive_topic);
+    out << QString("%1 : %2\n").arg("Send Topic", -label_width).arg(mqtt_send_topic);
+    out << QString("%1 : %2\n").arg("Propeller Name", -label_width).arg(propeller_name);
+    out << QString("%1 : %2 deg\n").arg("Angle Of Attack", -label_width).arg(angle_of_attack, 0, 'f', 2);
+    out << QString("%1 : %2 m/sec\n").arg("Airspeed", -label_width).arg(airspeed, 0, 'f', 2);
+    
+    out << QString("%1 : %2 RPM\n").arg("Max RPM", -label_width).arg(max_rpm, 0, 'f', 0);
+    out << QString("%1 : %2\n").arg("RPM Division", -label_width).arg(rpm_div, 0, 'f', 2);
+    out << QString("%1 : %2 RPM\n").arg("RPM Clemency", -label_width).arg(rpm_clemency, 0, 'f', 2);
+    
+    out << QString("%1 : %2\n").arg("Throttle Increase Step", -label_width).arg(throttle_increase_step, 0, 'f', 2);
+    out << QString("%1 : %2 ms\n").arg("Thrust Stabilizing WaitTime (ms)", -label_width).arg(thrust_stab_wait_time_ms);
+    out << QString("%1 : %2 ms\n").arg("Wait After Thrust (ms)", -label_width).arg(stage4_wait_time_ms);
+    
+    out << QString("%1 : %2\n").arg("Min Throttle", -label_width).arg(min_throttle, 0, 'f', 2);
+    out << QString("%1 : %2\n").arg("Max Throttle", -label_width).arg(max_throttle, 0, 'f', 2);
+    out << QString("%1 : %2 A\n").arg("Current Limit", -label_width).arg(current_limit);
+    out << QString("%1 : %2 N\n").arg("Thrust Offset", -label_width).arg(thrust_offset, 0, 'f', 2);
+    out << "------------------------------------------------\n";
+
+    save_file->flush();
+}
+
+void ThrustStandGUI::initLogFile() {
+    QString fullPath = log_file_path;
 
     if (!QFileInfo(fullPath).isAbsolute() || fullPath.isEmpty()) {
         fullPath = QCoreApplication::applicationDirPath() + QDir::separator() + "ASAT ThrustStand Records.csv";
@@ -1002,12 +1163,12 @@ void ThrustStandGUI::initExcelFile() {
         }
     }
 
-    excel_file_path = fullPath;
+    log_file_path = fullPath;
 }
 
-void ThrustStandGUI::chooseExcelLocation() {
+void ThrustStandGUI::chooseLogLocation() {
 
-    QString initialDir = QFileInfo(excel_file_path).path();
+    QString initialDir = QFileInfo(log_file_path).path();
     QString newFilePath = QFileDialog::getSaveFileName(
         this,
         "Select Log File Location",
@@ -1020,16 +1181,16 @@ void ThrustStandGUI::chooseExcelLocation() {
             newFilePath += ".csv";
         }
 
-        excel_file_path = newFilePath;
+        log_file_path = newFilePath;
 
-        initExcelFile();
-        qDebug() << "New log file location set to:" << excel_file_path;
+        initLogFile();
+        qDebug() << "New log file location set to:" << log_file_path;
     }
 }
 
-void ThrustStandGUI::openExcelFile()
+void ThrustStandGUI::openLogFile()
 {
-    QString fullFilePath = excel_file_path;
+    QString fullFilePath = log_file_path;
 
     if (!QFileInfo(fullFilePath).isAbsolute() || fullFilePath.isEmpty()) {
         fullFilePath = QCoreApplication::applicationDirPath() + QDir::separator() + "ASAT ThrustStand Records.csv";

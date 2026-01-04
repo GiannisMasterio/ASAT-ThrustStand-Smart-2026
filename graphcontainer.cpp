@@ -24,9 +24,19 @@ void GraphContainer::setupUI(const QString& title) {
     layout->addWidget(titleLabel);
 
     customPlot = new QCustomPlot(this);
-    customPlot->setBackground(QBrush(QColor(25, 25, 25))); // Σκούρο background
+    customPlot->setBackground(QBrush(QColor(25, 25, 25))); 
     customPlot->addGraph();
-    customPlot->graph(0)->setPen(QPen(QColor(THEME_COLOR), 2)); // Χρήση του μπλε θέματος
+    customPlot->graph(0)->setPen(QPen(QColor(THEME_COLOR), 2)); 
+
+    valueLabel = new QCPItemText(customPlot);
+    valueLabel->setPositionAlignment(Qt::AlignTop | Qt::AlignLeft);
+    valueLabel->position->setType(QCPItemPosition::ptAxisRectRatio);
+    valueLabel->position->setCoords(0.02, 0.02);
+    valueLabel->setText("0.00 " + m_unit);
+    valueLabel->setFont(QFont("Arial", 18, QFont::Bold));
+    valueLabel->setColor(Qt::white);
+    valueLabel->setPadding(QMargins(5, 5, 5, 5));
+
 
     QPen axisPen(Qt::white);
     customPlot->xAxis->setBasePen(axisPen);
@@ -44,6 +54,9 @@ void GraphContainer::setupUI(const QString& title) {
 
 void GraphContainer::addDataPoint(double time, double value) {
     if (!customPlot) return;
+
+    data_value = value;
+    valueLabel->setText(QString::number(data_value, 'f', 2) + " " + m_unit);
 
     customPlot->graph(0)->addData(time, value);
     customPlot->graph(0)->rescaleValueAxis(true);

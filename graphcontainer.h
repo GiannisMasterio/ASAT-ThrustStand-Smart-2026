@@ -22,6 +22,9 @@ private:
     QCustomPlot* customPlot;
     QLabel* titleLabel;
     QString m_unit;
+    QCPItemText* valueLabel;
+
+    double data_value = 0;
 
     void setupUI(const QString& title);
 };
