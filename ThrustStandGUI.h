@@ -3,25 +3,38 @@
 
 #include <QMainWindow>
 #include <QTimer>
-#include <QtSerialPort/QSerialPort>
-#include "mqttclient.h"
-#include <QFile>
+#include <QElapsedTimer>
+#include <QFrame>
 #include "constants.h"
+#include "VarState.h"
 #include "containers.h"
 #include "graphcontainer.h"
-#include <qlineedit.h>
-#include <qframe.h>
 #include "qcustomplot.h"
-#include <QElapsedTimer>
+#include "PropellerWindow.h"
+#include "BigBatteryWidget.h"
+#include "BatteryWidget.h"
+
+class BackendHandler;
+class Containers;
 
 struct SettingsElements {
-
     QString labeltext;
     QString initialValue;
     QString placeholder;
     bool isNumeric = false;
+
+    void* targetVar;
+
+    enum Type {Int, Bool, String, Double} type;
+
     QLabel* label = nullptr;
-    QWidget* entry = nullptr; // ÙÔ Í·Ì˘ QWidget Ôı ÂÈÌ·È ÈÔ „ÂÌÈÍÔ
+    QWidget* entry = nullptr;
+
+    SettingsElements(const QString& l, const QString& v, const QString& p, bool numeric, void* target, Type t) : labeltext(l), initialValue(v), placeholder(p),
+        isNumeric(numeric),
+        targetVar(target),
+        type(t) {
+    }
 };
 
 struct GraphDataPoint {
@@ -29,9 +42,19 @@ struct GraphDataPoint {
     double value;
 };
 
-enum IconType { Mode, Scene, EscapeExperiment, Propeller , Settings, Save};
+struct LogEntry {
+    double timeInSeconds;
+    double thrust, voltage, current, rpm, throttle, power, aoa, airspeed;
+    QString propName;
+};
 
-class Containers;
+enum IconType { Mode, Scene, Logging, EscapeExperiment, Propeller, Tuning, StopMotor, Status, Calibration, Settings, Save };
+
+enum class ControlMode {
+    StepController,
+    PIDController,
+    ADRController
+};
 
 class ThrustStandGUI : public QMainWindow
 {
@@ -41,63 +64,27 @@ public:
     explicit ThrustStandGUI(QWidget* parent = nullptr);
     ~ThrustStandGUI() override;
 
-    double min_throttle = MIN_THROTTLE; 
-    double max_throttle = MAX_THROTTLE; 
-    double max_rpm = MAX_RPM;  
-    double rpm_clemency = RPM_CLEMENCY;
-    double rpm_div = RPM_DIV;
-    double thrust_clemency = THRUST_CLEMENCY;
-    double throttle_increase_step = INCREASE_THROTTLE_STEP;
-    int stage4_wait_time_ms = STAGE4_WAIT_TIME_MS;
-    int thrust_stab_wait_time_ms = THRUST_STAB_WAIT_TIME_MS;
-
-    bool experiment_running = false;
-
     static QString getHoverStyle(const QString& baseColor);
 
-    QTimer* auto_mode_timer = nullptr;
-
-signals:
-
-    void limitsChanged(double newMinThrottle, double newMaxThrottle, double newMaxRpm, int current_limit, double newRpmClemency, double newRpmStep, double thrust_clemency, int stage4_wait_time_ms, double throttle_increase_step,int thrust_stab_wait_time_ms);
-    void mqttSendTopicChanged(const QString& newTopic);
+    ControlMode active_control_mode = ControlMode::StepController;
+    BackendHandler* backend_handler = nullptr;
 
 private slots:
-
     void on_closing();
     void graphicUpdates();
-    void updateMqttData();
-    void chooseLogLocation();
-    void openLogFile();
-    void serial_control();
-    void confirmPort();
+
     void escapeExperiment();
     void changeFunctionMode();
     void changeScene();
 
     void chooseSettings();
     void saveSettings();
-    void serial_sendCommand(QString command);
 
     void onHomeButtonClicked(const QString& mode);
-
-    void onMqttConnected();
-    void onMqttDisconnected();
-    void onMqttMessageReceived(const QString& message);
-
-    void handleSerial(bool status);
-    void readSerialData();
-
-    void processData(const QString& data, QString source);
-    void logToFile(bool status);
-
-    void publishMqttMessage(const QString& topic, const QString& payload);
-
+    void serial_control();
     void onExperimentFinished();
 
 private:
-    ModeHandler* auto_mode_handler = nullptr;
-
     QVector<double> timeHistory, thrustHistory, rpmHistory, voltageHistory,
         currentHistory, powerHistory, throttleHistory;
 
@@ -105,107 +92,86 @@ private:
 
     QElapsedTimer lastSceneChange;
     QElapsedTimer lastFunctionModeChange;
-    
+
     qint64 lastLogTimestamp = 0;
 
-    int logIntervalMs = 500; 
-
-    QVector <QString> propeller_list = { "1 x 16x12E","2 x 16x14","1 x 15x13.5","1 x 15x11","1 x 15x12","2 x 14x14E","2 x 14x14N",
-    "2 x 14x14","1 x 14x12","2 x 14x13N","2 x 14x13","2 x 14x13.5","2 x 13x11","1 x 13x13","1 x 13x10E" };
-    QStringList aoa_list = { "0", "5", "6", "8", "10", "15" };
-    QStringList baudrates = { "300", "1200", "2400", "4800", "9600", "14400", "19200", "38400", "57600", "115200" };
-
-    double current_thrust = 0.0;
-    double current_rpm = 0.0;
-    double current_voltage = 0.0;
-    double current_current = 0.0;
-    double current_throttle = min_throttle;
-    double current_power = 0.0;
-
-    double thrust_offset = 0.0;
-    int current_limit = 50; // ‘… ‘…Ã« ƒ≈ –—≈–≈… Õ¡ Œ≈–≈—¡”≈… ‘œ —≈’Ã¡ √…¡ Õ¡ Ã«  ¡≈… ‘œ ESC
-
-    double graphtimeCounter = 0.0; // √È· ÙÔÌ ‹ÓÔÌ· ◊ ÙÔı ˜Ò¸ÌÔı
+    double graphtimeCounter = 0.0;
     int auto_mode_timer_interval_ms = AUTO_MODE_TIMER_INTERVAL_MS;
 
-    QString function_mode; 
-    QString mqtt = "MQTT";
-    QString serial = "SERIAL";
-    QString selected_source = mqtt;
+    QString current_scene = "MAIN";
 
-    QPushButton* firstIconButton;
+    QPushButton* firstIconButton = nullptr;
     QString first_icon_path = EXPERIMENT_MODE_ICONPATH;
 
-    QPushButton* secondIconButton;
+    QPushButton* secondIconButton = nullptr;
     QString second_icon_path = GRAPHICONPATH;
 
-    QPushButton* thirdIconButton;
+    QPushButton* thirdIconButton = nullptr;
     QString third_icon_path = EXPERIMENT_NOT_RUNNING_ICONPATH;
 
-    QTimer* graphic_timer;
-    QTimer* mqtt_data_timer;
-   
+    QPushButton* statusIconButton = nullptr;
+    QString status_icon_path = DISARMED_ICONPATH;
+
+    QPushButton* saveIconButton = nullptr;
+    QString save_icon_path = SAVEICON_LOW_OPACITY_PATH;
+
+    QPushButton* stopMotorIconButton = nullptr;
+    QString stop_motor_icon_path = STOP_MOTOR_ICONPATH;
+
+    QPushButton* loggingIconButton = nullptr;
+    QString logging_icon_path = LOGGING_OFF_ICONPATH;
+
+    QPushButton* controllerTuningIconButton = nullptr;
+    QString controller_tuning_icon_path = CONTROLLER_TUNING_ICONPATH;
+
+    QTimer* graphic_timer = nullptr;
+
+    QVector<SettingsElements> settings_fields;
+
     GraphContainer* thrustGraph = nullptr;
     GraphContainer* rpmGraph = nullptr;
     GraphContainer* throttleGraph = nullptr;
     GraphContainer* powerGraph = nullptr;
     GraphContainer* voltageGraph = nullptr;
     GraphContainer* currentGraph = nullptr;
+    GraphContainer* torqueGraph = nullptr;
+
+    BatteryWidget* batteryWidget = nullptr;
 
     Containers* instantthrustGUI = nullptr;
     Containers* instantcurrentGUI = nullptr;
-    Containers* instantvoltageGUI = nullptr;
+    Containers* instanttorqueGUI = nullptr;
     Containers* instantthrottleGUI = nullptr;
     Containers* instantrpmGUI = nullptr;
     Containers* instantpowerGUI = nullptr;
 
-    QSerialPort* serial_port = nullptr;
-    QString com_port;
-    int baudrate = 9600;
-
-    MqttClient* mqtt_client = nullptr;
-    QString mqtt_broker = DEFAULT_MQTT_BROKER;
-    
-    QString mqtt_receive_topic = DEFAULT_MQTT_RECEIVE_TOPIC;
-    QString mqtt_send_topic = DEFAULT_MQTT_SEND_TOPIC;
-    int mqtt_port = DEFAULT_MQTT_PORT;
-
-    QString propeller_name = DEFAULT_PROPELLER_NAME;
-    double angle_of_attack = DEFAULT_AOA;
-    double airspeed = DEFAULT_AIRSPEED;
-
-    QString log_file_path = "ASAT ThrustStand Records.csv";
-    QString save_file_path = "ASAT ThrustStandSmart Save.txt";
-    QFile* log_file = nullptr;
-    QFile* save_file = nullptr;
-
     QFrame* createBottomToolbar();
+    void updateBottomToolbar();
+    void updateArmedState(bool new_arm_status);
 
     void createHomeScene();
     void createMainScene();
     void createGraphScene();
 
+    void windowCreate();
+    void set_colors();
+
+    void customizeExperiment();
+    void start_experiment();
+
+    double getThrottlePercentage(int value);
+
+    void calibrate_parameters();
+    void inspect_propeller_logs();
+    void tune_controller();
+    void stopMotor();
+
+    void setupSettingsFields();
     void loadSettings();
 
-    void set_colors();
-    void initLogFile();
-    void start_mqtt();
-    void disconnect_mqtt();
-    void customizeExperiment();
-    void start_auto();
-    void updateBottomToolbar();
-    double getThrottlePercentage(double value) const;
-
-    bool running = true;
-    bool process_begin = false;
-    QByteArray last_mqtt_data;
-
-    QString current_scene = "MAIN"; // Ë· ı·Ò˜ÂÈ Á MAIN  ¡… « GRAPH
-
 protected:
-    double target_rpm;
-    double desired_throttle;
+    void keyPressEvent(QKeyEvent* event) override;
     void closeEvent(QCloseEvent* event) override;
 };
 
-#endif
+#endif // THRUSTSTANDGUI_H

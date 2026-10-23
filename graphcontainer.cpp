@@ -3,53 +3,91 @@
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QFont>
+#include <QLinearGradient>
+
+int title_label_size = 20;
 
 GraphContainer::GraphContainer(const QString& title, const QString& unit, QWidget* parent)
     : QFrame(parent), m_unit(unit) {
 
-    setStyleSheet(QString("QFrame { background-color: %1; border-radius: 15px; border: 1px solid %2; }")
-        .arg(CONTAINER_COLOR).arg(BORDER_COLOR));
+    setObjectName("GraphCard");
+    setStyleSheet(
+        "QFrame#GraphCard {"
+        "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
+        "              stop:0 rgba(30,41,59,200), stop:1 rgba(10,16,30,225));"
+        "  border: 1px solid rgba(255,255,255,40);"
+        "  border-radius: 24px;"
+        "}");
 
     setupUI(title);
 }
 
 void GraphContainer::setupUI(const QString& title) {
     QVBoxLayout* layout = new QVBoxLayout(this);
-    layout->setContentsMargins(10, 10, 10, 10);
+    layout->setContentsMargins(18, 16, 18, 14);
+    layout->setSpacing(6);
 
-    titleLabel = new QLabel(title, this);
+    // --- Τίτλος ---
+    titleLabel = new QLabel(title.toUpper(), this);
     titleLabel->setAlignment(Qt::AlignCenter);
-    titleLabel->setFont(QFont("Arial", 20, QFont::Bold));
-    titleLabel->setStyleSheet("color: white; border: none;");
+    QFont tf("Segoe UI", title_label_size, QFont::DemiBold);
+    tf.setLetterSpacing(QFont::AbsoluteSpacing, 3);
+    titleLabel->setFont(tf);
+    titleLabel->setStyleSheet("color: rgba(203,213,225,230); border: none; background: transparent;");
     layout->addWidget(titleLabel);
 
+    // --- Plot: διάφανο, ώστε να φαίνεται η κάρτα ---
     customPlot = new QCustomPlot(this);
-    customPlot->setBackground(QBrush(QColor(25, 25, 25))); 
-    customPlot->addGraph();
-    customPlot->graph(0)->setPen(QPen(QColor(THEME_COLOR), 2)); 
+    customPlot->setBackground(QBrush(Qt::transparent));
+    customPlot->axisRect()->setBackground(QBrush(Qt::transparent));
+    customPlot->setStyleSheet("background: transparent; border: none;");
+    customPlot->setAttribute(Qt::WA_TranslucentBackground);
 
+    // --- Γραμμή + gradient γέμισμα ---
+    customPlot->addGraph();
+    QColor lineColor(THEME_COLOR);
+    customPlot->graph(0)->setPen(QPen(lineColor, 2.5));
+
+    QLinearGradient fill(0, 0, 0, 1);
+    fill.setCoordinateMode(QGradient::ObjectBoundingMode);
+    QColor top = lineColor;    top.setAlpha(90);
+    QColor bottom = lineColor; bottom.setAlpha(0);
+    fill.setColorAt(0, top);
+    fill.setColorAt(1, bottom);
+    customPlot->graph(0)->setBrush(QBrush(fill));
+
+    // --- Τρέχουσα τιμή μέσα στο γράφημα ---
     valueLabel = new QCPItemText(customPlot);
     valueLabel->setPositionAlignment(Qt::AlignTop | Qt::AlignLeft);
     valueLabel->position->setType(QCPItemPosition::ptAxisRectRatio);
     valueLabel->position->setCoords(0.02, 0.02);
     valueLabel->setText("0.00 " + m_unit);
-    valueLabel->setFont(QFont("Arial", 18, QFont::Bold));
+    valueLabel->setFont(QFont("Segoe UI", 18, QFont::Bold));
     valueLabel->setColor(Qt::white);
-    valueLabel->setPadding(QMargins(5, 5, 5, 5));
+    valueLabel->setPadding(QMargins(6, 4, 6, 4));
 
+    // --- Άξονες: λεπτοί, απαλό γκρι ---
+    const QColor axisColor(148, 163, 184);
+    const QFont  tickFont("Segoe UI", 10);
 
-    QPen axisPen(Qt::white);
-    customPlot->xAxis->setBasePen(axisPen);
-    customPlot->yAxis->setBasePen(axisPen);
-    customPlot->xAxis->setTickLabelColor(Qt::white);
-    customPlot->yAxis->setTickLabelColor(Qt::white);
-    customPlot->yAxis->setLabelColor(Qt::white);
-    customPlot->yAxis->setLabel(m_unit);
+    for (QCPAxis* ax : { customPlot->xAxis, customPlot->yAxis }) {
+        ax->setBasePen(QPen(QColor(255, 255, 255, 40), 1));
+        ax->setTickPen(Qt::NoPen);
+        ax->setSubTickPen(Qt::NoPen);
+        ax->setTickLabelColor(axisColor);
+        ax->setLabelColor(axisColor);
+        ax->setTickLabelFont(tickFont);
+        ax->setTickLength(0, 0);
+        ax->setSubTickLength(0, 0);
+    }
 
     customPlot->xAxis->grid()->setVisible(false);
-    customPlot->yAxis->grid()->setPen(QPen(QColor(60, 60, 60)));
+    customPlot->yAxis->grid()->setVisible(true);
+    customPlot->yAxis->grid()->setPen(QPen(QColor(255, 255, 255, 28), 1, Qt::DotLine));
+    customPlot->yAxis->grid()->setSubGridVisible(false);
+    customPlot->yAxis->grid()->setZeroLinePen(Qt::NoPen);
 
-    layout->addWidget(customPlot);
+    layout->addWidget(customPlot, 1);
 }
 
 void GraphContainer::addDataPoint(double time, double value) {
@@ -65,12 +103,29 @@ void GraphContainer::addDataPoint(double time, double value) {
     customPlot->replot();
 }
 
-void GraphContainer::setFullData(const QVector<double>& timeData, const QVector<double>& valueData) {
-    if (!customPlot || timeData.isEmpty()) return;
+void GraphContainer::setFullData(const QVector<double>& xData, const QVector<double>& yData) {
+    if (!customPlot || xData.isEmpty()) return;
 
-    customPlot->graph(0)->setData(timeData, valueData);
-    customPlot->graph(0)->rescaleValueAxis(true);
+    customPlot->graph(0)->setData(xData, yData);
 
-    customPlot->xAxis->setRange(timeData.last(), 10, Qt::AlignRight);
+    customPlot->graph(0)->rescaleAxes();
+
+    customPlot->xAxis->scaleRange(1.1, customPlot->xAxis->range().center());
+    customPlot->yAxis->scaleRange(1.1, customPlot->yAxis->range().center());
+
+    valueLabel->setText(QString::number(yData.last(), 'f', 2) + " " + m_unit);
+
     customPlot->replot();
+}
+
+void GraphContainer::setTitle(const QString& title) {
+    if (titleLabel) titleLabel->setText(title.toUpper());
+}
+
+void GraphContainer::setAxisLabels(const QString& xLabel, const QString& yLabel) {
+    if (customPlot) {
+        customPlot->xAxis->setLabel(xLabel);
+        customPlot->yAxis->setLabel(yLabel);
+        customPlot->replot();
+    }
 }

@@ -16,6 +16,7 @@
     <WindowsTargetPlatformVersion Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">10.0</WindowsTargetPlatformVersion>
     <WindowsTargetPlatformVersion Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">10.0</WindowsTargetPlatformVersion>
     <QtMsBuild Condition="'$(QtMsBuild)'=='' OR !Exists('$(QtMsBuild)\qt.targets')">$(MSBuildProjectDirectory)\QtMsBuild</QtMsBuild>
+    <ProjectName>ThrustStandGUI</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="Configuration">
@@ -37,12 +38,12 @@
   </ImportGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="QtSettings">
     <QtInstall>qt</QtInstall>
-    <QtModules>core;gui;widgets;serialport;printsupport</QtModules>
+    <QtModules>core;gui;widgets;serialport;printsupport;multimedia</QtModules>
     <QtBuildConfig>debug</QtBuildConfig>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'" Label="QtSettings">
     <QtInstall>qt</QtInstall>
-    <QtModules>core;gui;widgets;printsupport;serialport</QtModules>
+    <QtModules>core;gui;widgets;printsupport;serialport;multimedia</QtModules>
     <QtBuildConfig>release</QtBuildConfig>
   </PropertyGroup>
   <Target Name="QtMsBuildNotFound" BeforeTargets="CustomBuild;ClCompile" Condition="!Exists('$(QtMsBuild)\qt.targets') or !Exists('$(QtMsBuild)\qt.props')">
@@ -122,26 +123,46 @@ Qt6Mqtt.lib;%(AdditionalDependencies)</AdditionalDependencies>
   </ItemDefinitionGroup>
   <ItemGroup>
     <QtMoc Include="ThrustStandGUI.h" />
-    <ClCompile Include="containers.cpp" />
-    <ClCompile Include="graphcontainer.cpp" />
-    <ClCompile Include="modehandler.cpp" />
-    <ClCompile Include="mqttclient.cpp" />
-    <ClCompile Include="qcustomplot.cpp" />
+    <ClCompile Include="Battery.cpp" />
+    <ClCompile Include="Containers.cpp" />
+    <ClCompile Include="GraphContainer.cpp" />
+    <ClCompile Include="BackendHandler.cpp" />
+    <ClCompile Include="MqttClient.cpp" />
+    <ClCompile Include="propellerwindow.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="QCustomPlot.cpp" />
     <ClCompile Include="ThrustStandGUI.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <QtMoc Include="modehandler.h" />
+    <QtMoc Include="BackendHandler.h" />
   </ItemGroup>
   <ItemGroup>
-    <QtMoc Include="mqttclient.h" />
+    <QtMoc Include="MqttClient.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="constants.h" />
-    <QtMoc Include="qcustomplot.h" />
-    <QtMoc Include="graphcontainer.h" />
+    <ClInclude Include="VarState.h" />
+    <QtMoc Include="AudioHandler.h">
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(QtMsBuild)\qt_vars.target" "$(QtMsBuild)\qt_moc.target"</Command>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+    </QtMoc>
+    <ClInclude Include="AutoControl.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClInclude>
+    <QtMoc Include="BatteryWidget.h" />
+    <QtMoc Include="BigBatteryWidget.h" />
+    <ClInclude Include="Constants.h" />
+    <QtMoc Include="QCustomPlot.h" />
+    <QtMoc Include="GraphContainer.h" />
+    <ClCompile Include="propellerwindow.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClInclude Include="resource.h" />
-    <QtMoc Include="containers.h" />
+    <QtMoc Include="Containers.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="QtWidgetsApplication1.rc" />

@@ -26,10 +26,19 @@
     <ClCompile Include="ThrustStandGUI.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="qcustomplot.cpp">
+    <ClCompile Include="QCustomPlot.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="graphcontainer.cpp">
+    <ClCompile Include="GraphContainer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="propellerwindow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="propellerwindow.h">
+      <Filter>Header Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Battery.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -37,13 +46,13 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="modehandler.cpp">
+    <ClCompile Include="BackendHandler.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="mqttclient.cpp">
+    <ClCompile Include="MqttClient.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="containers.cpp">
+    <ClCompile Include="Containers.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -51,27 +60,42 @@
     <QtMoc Include="ThrustStandGUI.h">
       <Filter>Header Files</Filter>
     </QtMoc>
-    <QtMoc Include="modehandler.h">
+    <QtMoc Include="BackendHandler.h">
       <Filter>Header Files</Filter>
     </QtMoc>
-    <QtMoc Include="mqttclient.h">
+    <QtMoc Include="MqttClient.h">
       <Filter>Header Files</Filter>
     </QtMoc>
-    <QtMoc Include="containers.h">
+    <QtMoc Include="Containers.h">
       <Filter>Header Files</Filter>
     </QtMoc>
-    <QtMoc Include="qcustomplot.h">
+    <QtMoc Include="QCustomPlot.h">
       <Filter>Header Files</Filter>
     </QtMoc>
-    <QtMoc Include="graphcontainer.h">
+    <QtMoc Include="GraphContainer.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="AudioHandler.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="BatteryWidget.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="BigBatteryWidget.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="constants.h">
+    <ClInclude Include="Constants.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="AutoControl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VarState.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

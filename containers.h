@@ -4,7 +4,7 @@
 #include <QWidget>
 #include <QFrame>
 #include <QString>
-#include "modehandler.h"
+#include "backendhandler.h"
 
 
 class QLabel;
@@ -19,19 +19,20 @@ class Containers : public QFrame
 
 public:
     explicit Containers(const QString& title, int titleSize, const QString& titleColor,
-        double initialValue, bool hasBar, const QString& variableQuantity, ThrustStandGUI* guiMaster,
+        double initialValue, bool hasBar, BackendHandler* backend_handler,
         QWidget* parent = nullptr);
 
     ~Containers() override = default;
 
-    ModeHandler* getModeHandler() const { return mode_handler; }
-    // ειναι για να επιστρεψει pointer στο αντικειμενο και να καλεσω ετσι καποιο method του
-
 public slots:
-    void updateData(double newValue, double currentRpm);
+
+    void updateData(double newValue);
     void handleModeChange(const QString& newMode);
 
 private:
+    
+    BackendHandler* backend_handler = nullptr;
+
     QString title_text;
     int title_label_size;
     QString title_label_color;
@@ -39,7 +40,6 @@ private:
     QString unit;
     bool has_bar;
     QString quantity;
-    QString function_mode;
 
     double low_bound = 2.0;
     double high_bound = 5.0;
@@ -56,13 +56,11 @@ private:
     QCheckBox* toggle_switch = nullptr;
     QPushButton* slider_opener_button = nullptr;
 
-    ModeHandler* mode_handler = nullptr;
-    ThrustStandGUI* m_guiMaster;
-
     void checkBoundsAndSetColor(double currentValue);
     void design();
     void setupControlElements();
-    double getThrottlePercentage() const;
+    QString formatValueText(double v) const;
+    QString barStyle(const QString& color) const;
 };
 
 #endif 

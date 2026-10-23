@@ -6,6 +6,7 @@ int main(int argc, char* argv[])
     QApplication app(argc, argv);
     ThrustStandGUI window;
 
-    window.show();
+    window.showFullScreen();
+
     return app.exec();
 }
