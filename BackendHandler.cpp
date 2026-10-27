@@ -29,7 +29,6 @@ BackendHandler::BackendHandler(QObject* parent, QObject* defaultValue) :
 {
     serial_port = new QSerialPort(this);
     mqtt_data_timer = new QTimer(this);
-
     
     initLogFile();
 
@@ -42,8 +41,8 @@ BackendHandler::BackendHandler(QObject* parent, QObject* defaultValue) :
 
     audio_handler = new AudioHandler(this);
 
-    step_controller = new StepController(0, 0);
-    pid_controller = new PidController(Kp, Ki, Kd, integral_term, cfg.max_throttle, cfg.min_throttle);
+    step_controller = new StepController(0, 0, cfg.throttle_increase_step);
+    pid_controller = new PidController(Kp, Ki, Kd, integral_term, cfg.min_throttle, cfg.max_throttle);
     adrc_controller = new ADRCController(b0_val, wc_val, wo_val, min_out, max_out);
     registerController("Step Controller", step_controller);
     registerController("PID Controller", pid_controller);
@@ -177,7 +176,7 @@ void BackendHandler::receiveTelemetry(const QString& data, QString source) {
         if (is_armed) emit armedStateChanged(false);
     }
     else {
-        emit armedStateChanged(is_armed);
+        if (!is_armed) emit armedStateChanged(is_armed); // an den einai armed kanto gia tash!=0
     }
 
     if (write_logs != previous_write_status) {
@@ -187,7 +186,7 @@ void BackendHandler::receiveTelemetry(const QString& data, QString source) {
     logToFile(true);
 }
 
-void BackendHandler::logToFile(bool status) {
+/*void BackendHandler::logToFile(bool status) {
 
     if (!status || !write_logs) return;
 
@@ -233,6 +232,78 @@ void BackendHandler::logToFile(bool status) {
         .arg(cfg.propeller_name, label_width)
         .arg(cfg.angle_of_attack, label_width, 'f', 2)
         .arg(cfg.airspeed, label_width, 'f', 2);
+
+    file.close();
+}
+
+*/
+
+void BackendHandler::initLogFile() {
+    QString fullPath = log_file_path;
+
+    if (!QFileInfo(fullPath).isAbsolute() || fullPath.isEmpty()) {
+        fullPath = QCoreApplication::applicationDirPath() + QDir::separator() + log_file_path;
+    }
+
+    QFile file(fullPath);
+
+    if (!file.exists()) {
+        if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QTextStream out(&file);
+            out << "                     Timestamp                  Thrust (N)               Torque (N*m)               Voltage (V)                Current (A)               RPM               Throttle (%)                  Power (W)              Propeller Name            AOA (deg)           Airspeed (m/s)\n";
+            file.close();
+            qDebug() << "Created initial log file:" << fullPath;
+        }
+    }
+
+    log_file_path = fullPath;
+}
+
+void BackendHandler::logToFile(bool status) {
+    if (!status || !write_logs) return;
+
+    int label_width = 26;
+    QFile file(log_file_path);
+    bool write_header = (!file.exists() || file.size() == 0);
+
+    if (!file.open(QIODevice::Append | QIODevice::Text)) {
+        qWarning() << "Error opening log file:" << file.errorString();
+        return;
+    }
+
+    QString timestamp = QDateTime::currentDateTime().toString("HH:mm:ss");
+    double throttle_pct = getThrottlePercentage(tel.throttle);
+
+    // ΔΥΝΑΜΙΚΗ ΛΙΣΤΑ LOGGING: Προσθέτεις/αφαιρείς ό,τι θες εδώ σε 1 γραμμή!
+    QVector<QPair<QString, QString>> log_columns = {
+        {"Timestamp",                 timestamp},
+        {"Thrust (N)",                QString::number(tel.thrust, 'f', 2)},
+        {"Torque (N*m)",              QString::number(tel.torque, 'f', 3)},
+        {"Voltage (V)",               QString::number(tel.voltage, 'f', 2)},
+        {"Current (A)",               QString::number(tel.current, 'f', 2)},
+        {"RPM",                       QString::number(tel.rpm, 'f', 0)},
+        {"Throttle (%)",              QString::number(throttle_pct, 'f', 2)},
+        {"Power (W)",                 QString::number(tel.power, 'f', 2)},
+        {"Propeller Name",            cfg.propeller_name},
+        {"AOA (deg)",                 QString::number(cfg.angle_of_attack, 'f', 2)},
+        {"Airspeed (m/sec)",          QString::number(cfg.airspeed, 'f', 2)}
+    };
+
+    QTextStream out(&file);
+
+    // Αν το αρχείο είναι άδειο, γράφει αυτόματα τις επικεφαλίδες από τη λίστα!
+    if (write_header) {
+        for (const auto& col : log_columns) {
+            out << QString("%1 ").arg(col.first, label_width);
+        }
+        out << "\n";
+    }
+
+    // Γράφει τις τιμές
+    for (const auto& col : log_columns) {
+        out << QString("%1 ").arg(col.second, label_width);
+    }
+    out << "\n";
 
     file.close();
 }
@@ -336,27 +407,6 @@ void BackendHandler::chooseLogLocation() {
         initLogFile();
         qDebug() << "New log file location set to:" << log_file_path;
     }
-}
-
-void BackendHandler::initLogFile() {
-    QString fullPath = log_file_path;
-
-    if (!QFileInfo(fullPath).isAbsolute() || fullPath.isEmpty()) {
-        fullPath = QCoreApplication::applicationDirPath() + QDir::separator() + log_file_path;
-    }
-
-    QFile file(fullPath);
-
-    if (!file.exists()) {
-        if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            QTextStream out(&file);
-            out << "                     Timestamp                  Thrust (N)               Torque (N*m)               Voltage (V)                Current (A)               RPM               Throttle (%)                  Power (W)              Propeller Name            AOA (deg)           Airspeed (m/s)\n";
-            file.close();
-            qDebug() << "Created initial log file:" << fullPath;
-        }
-    }
-
-    log_file_path = fullPath;
 }
 
 void BackendHandler::openLogFile() {
@@ -547,6 +597,8 @@ void BackendHandler::createSliderWindow() {
 
     if (mode == "MANUAL") {
         slider->setRange(cfg.min_throttle, cfg.max_throttle);
+        int initial_val = std::clamp(tel.throttle, cfg.min_throttle, cfg.max_throttle);
+        slider->setValue(initial_val);
         value_type_input_field->setValidator(new QDoubleValidator((double)cfg.min_throttle, (double)cfg.max_throttle, 1, value_type_input_field));
     }
     else {
@@ -584,7 +636,15 @@ void BackendHandler::createSliderWindow() {
         });
 
     value_type_input_field->setText(QString::number(slider->value()));
-    updateSliderValue(slider->value());
+
+    // Ενημερώνουμε ΜΟΝΟ το κείμενο στην οθόνη κατά το άνοιγμα, ΔΕΝ στέλνουμε MQTT εντολή!
+    if (mode == "MANUAL") {
+        double pct = qMax(0.0, getThrottlePercentage(slider->value()));
+        slider_value_label->setText(QString::number(pct, 'f', 2) + " %");
+    }
+    else {
+        slider_value_label->setText(QString::number(target_rpm, 'f', 0) + " rpm");
+    }
 
     slider_window->exec();
     slider_window = nullptr;
@@ -678,7 +738,7 @@ void BackendHandler::execute_experiment() {
     switch (experiment_stage) {
 
     case IncrementRPMTarget:
-        if (use_max_rpm_logic) target_rpm = max(cfg.rpm_step + (int)target_rpm, (int)cfg.max_rpm);
+        if (use_max_rpm_logic) target_rpm = min(cfg.rpm_step + (int)target_rpm, (int)cfg.max_rpm);
         else target_rpm += cfg.rpm_step;
 
         lower_rpm_bound = target_rpm - cfg.rpm_clemency;

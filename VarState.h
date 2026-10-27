@@ -31,7 +31,6 @@ struct ExperimentConfig {
     int min_throttle = MIN_THROTTLE;
     int max_throttle = MAX_THROTTLE;
     unsigned int max_rpm = MAX_RPM;
-    unsigned int initial_rpm = 0;
 
     int rpm_clemency = RPM_CLEMENCY;
     int rpm_step = RPM_STEP;

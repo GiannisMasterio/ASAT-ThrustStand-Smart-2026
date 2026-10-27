@@ -906,10 +906,8 @@ void ThrustStandGUI::createMainScene() {
     setCentralWidget(centralWidget);
 
     QString backgroundStyle = QString(
-        "QWidget#CentralWidget {"
-        "background-image: url(%1);"
-        "background-position: center;"
-        "background-repeat: no-repeat;"
+        "QWidget#CentralWidget {" "background-image: url(%1);"
+        "background-position: center;""background-repeat: no-repeat;"
         "}").arg(MAINSCENE_BG);
     centralWidget->setStyleSheet(backgroundStyle);
 
@@ -938,8 +936,6 @@ void ThrustStandGUI::createMainScene() {
     double maxV = bounds_map.value("Voltage").second;
     int initial_battery_pct = std::clamp((int)((tel.voltage - minV) / (maxV - minV) * 100), 0, 100);
     batteryWidget->setPercentage(initial_battery_pct);
-
-    if (backend_handler && mqttcfg.mqtt_client)  connect(backend_handler, &BackendHandler::publishMqtt, mqttcfg.mqtt_client, &MqttClient::publish);
         
     gridLayout->addWidget(instantthrustGUI, 0, 0);
     gridLayout->addWidget(instantcurrentGUI, 1, 0);
@@ -1112,7 +1108,7 @@ void ThrustStandGUI::graphicUpdates() {
     if (current_scene == "MAIN" && instantthrustGUI != nullptr) {
         instantthrustGUI->updateData(tel.thrust);
         instantcurrentGUI->updateData(tel.current);
-        instanttorqueGUI->updateData(tel.voltage);
+        instanttorqueGUI->updateData(tel.torque);
         instantthrottleGUI->updateData((double)tel.throttle);
         instantrpmGUI->updateData(tel.rpm);
         instantpowerGUI->updateData(tel.power);
@@ -1282,11 +1278,9 @@ void ThrustStandGUI::setupSettingsFields() {
         {"Airspeed (m/sec):", "", "Enter airspeed", true, &cfg.airspeed, SettingsElements::Double},
         {"Min Throttle (us):", "", "", true, &cfg.min_throttle, SettingsElements::Int},
         {"Max Throttle (us):", "", "", true, &cfg.max_throttle, SettingsElements::Int},
-        {"Initial RPM:", "", "", true, &cfg.initial_rpm, SettingsElements::Int},
         {"Max RPM:", "", "", true, &cfg.max_rpm, SettingsElements::Int},
         {"RPM Clemency:", "", "", true, &cfg.rpm_clemency, SettingsElements::Int},
         {"RPM Step:", "", "", true, &cfg.rpm_step, SettingsElements::Int},
-        {"Throttle Increase Step:", "", "", true, &cfg.throttle_increase_step, SettingsElements::Int},
         {"Thrust Stabilizing WaitTime (ms):", "", "", true, &cfg.thrust_stab_wait_time_ms, SettingsElements::Int},
         {"Wait After Thrust (ms):", "", "", true, &cfg.record_data_wait_time_ms, SettingsElements::Int},
         {"Current Limit (A):", "", "", true, &cfg.current_limit, SettingsElements::Double},
@@ -1357,11 +1351,9 @@ void ThrustStandGUI::chooseSettings() {
         {"Airspeed (m/sec):", "", "Enter airspeed", true, &cfg.airspeed, SettingsElements::Double},
         {"Min Throttle (us):", "", "", true, &cfg.min_throttle, SettingsElements::Int},
         {"Max Throttle (us):", "", "", true, &cfg.max_throttle, SettingsElements::Int},
-        {"Initial RPM:", "", "", true, &cfg.initial_rpm, SettingsElements::Int},
         {"Max RPM:", "", "", true, &cfg.max_rpm, SettingsElements::Int},
         {"RPM Clemency:", "", "", true, &cfg.rpm_clemency, SettingsElements::Int},
         {"RPM Step:", "", "", true, &cfg.rpm_step, SettingsElements::Int},
-        {"Throttle Increase Step:", "", "", true, &cfg.throttle_increase_step, SettingsElements::Int},
         {"Thrust Stabilizing WaitTime (ms):", "", "", true, &cfg.thrust_stab_wait_time_ms, SettingsElements::Int},
         {"Wait After Thrust (ms):", "", "", true, &cfg.record_data_wait_time_ms, SettingsElements::Int},
         {"Current Limit (A):", "", "", true, &cfg.current_limit, SettingsElements::Double},
@@ -1672,13 +1664,67 @@ void ThrustStandGUI::customizeExperiment() {
     auto& tel = backend_handler->tel;
 
     QWidget* settings_window = new QWidget(nullptr, Qt::Window);
+    settings_window->setObjectName("ModernDialog");
     settings_window->setWindowTitle("Experiment Settings");
-    settings_window->setFixedSize(500, 950);
+    settings_window->setMinimumSize(880, 700);
     settings_window->setWindowModality(Qt::ApplicationModal);
     settings_window->setAttribute(Qt::WA_DeleteOnClose);
+    settings_window->setAttribute(Qt::WA_StyledBackground, true);
     settings_window->setWindowIcon(QIcon(ICONPATH));
+    settings_window->setStyleSheet(DIALOG_STYLE);
 
     QVBoxLayout* layout = new QVBoxLayout(settings_window);
+    layout->setContentsMargins(32, 26, 32, 26);
+    layout->setSpacing(10);
+
+    // --- Επικεφαλίδα ---
+    QLabel* header = new QLabel("EXPERIMENT SETTINGS", settings_window);
+    header->setObjectName("DialogHeader");
+    QFont hf("Segoe UI", 15, QFont::DemiBold);
+    hf.setLetterSpacing(QFont::AbsoluteSpacing, 3);
+    header->setFont(hf);
+    header->setAlignment(Qt::AlignCenter);
+    layout->addWidget(header);
+    layout->addSpacing(8);
+
+    // --- Helper: τίτλος ενότητας + grid με 3 στήλες ---
+    auto createSection = [&](const QString& title) {
+        QLabel* t = new QLabel(title, settings_window);
+        t->setObjectName("SectionLabel");
+        QFont f("Segoe UI", 11, QFont::DemiBold);
+        f.setLetterSpacing(QFont::AbsoluteSpacing, 3);
+        t->setFont(f);
+        layout->addWidget(t);
+
+        QFrame* line = new QFrame(settings_window);
+        line->setFixedHeight(1);
+        line->setStyleSheet("background-color: rgba(255,255,255,40); border: none;");
+        layout->addWidget(line);
+
+        QGridLayout* grid = new QGridLayout();
+        grid->setHorizontalSpacing(18);
+        grid->setVerticalSpacing(10);
+        for (int c = 0; c < 3; ++c) grid->setColumnStretch(c, 1);
+        layout->addLayout(grid);
+        layout->addSpacing(8);
+        return grid;
+        };
+
+    QGridLayout* generalGrid = createSection("GENERAL");
+    QGridLayout* thrustGrid = createSection("THRUST & RPM");
+    QGridLayout* timingGrid = createSection("TIMINGS");
+
+    QHash<QGridLayout*, int> cellCount;
+    auto addCell = [&](QGridLayout* grid, QWidget* label, QWidget* entry) {
+        QWidget* cell = new QWidget(settings_window);
+        QVBoxLayout* cl = new QVBoxLayout(cell);
+        cl->setContentsMargins(0, 0, 0, 0);
+        cl->setSpacing(4);
+        cl->addWidget(label);
+        cl->addWidget(entry);
+        int n = cellCount[grid]++;
+        grid->addWidget(cell, n / 3, n % 3);
+        };
 
     QVector<SettingsElements> fields = {
         // --- General Settings ---
@@ -1693,7 +1739,6 @@ void ThrustStandGUI::customizeExperiment() {
         {"RPM Step:", "", "", true, &cfg.rpm_step, SettingsElements::Int},
         {"Max RPM:", "", "", true, &cfg.max_rpm, SettingsElements::Int},
         {"RPM Clemency:", "", "", true, &cfg.rpm_clemency, SettingsElements::Int},
-        {"Throttle Increase Step:", "", "", true, &cfg.throttle_increase_step, SettingsElements::Int}, // Ή SettingsElements::Double αν το έχεις δηλώσει ως double
 
         // --- Timings & Delays ---
         {"Thrust Stabilizing WaitTime (ms):", "", "", true, &cfg.thrust_stab_wait_time_ms, SettingsElements::Int},
@@ -1704,32 +1749,44 @@ void ThrustStandGUI::customizeExperiment() {
         {"Thrust Offset (N):", "", "", true, &cal.thrust_offset, SettingsElements::Double},
 
         // --- Experiment Bounds ---
-        {"First Experiment", "", "", true, &cfg.first_experiment, SettingsElements::Int}, // Υποθέτοντας ID/Number
-        {"Last Experiment", "", "", true, &cfg.last_experiment, SettingsElements::Int}    // Υποθέτοντας ID/Number
+        {"First Experiment", "", "", true, &cfg.first_experiment, SettingsElements::Bool},
+        {"Last Experiment", "", "", true, &cfg.last_experiment, SettingsElements::Bool}
     };
 
     QPushButton* confirmButton = new QPushButton("Confirm Settings", settings_window);
 
+    // Οι δύο checkboxes μπαίνουν σε μία γραμμή κάτω από τις ενότητες
+    QHBoxLayout* boundsRow = new QHBoxLayout();
+    boundsRow->setSpacing(30);
+    boundsRow->addStretch();
+
     for (auto& field : fields) {
         if (field.labeltext == "First Experiment" || field.labeltext == "Last Experiment") {
-            if (field.labeltext == "First Experiment") layout->addSpacing(20);
-
             QCheckBox* checkBox = new QCheckBox(field.labeltext, settings_window);
             checkBox->setChecked(field.labeltext == "First Experiment" ? cfg.first_experiment : cfg.last_experiment);
-            checkBox->setStyleSheet("margin-bottom: 5px; font-weight: bold;");
+            checkBox->setCursor(Qt::PointingHandCursor);
+            checkBox->setMinimumHeight(34);
 
             field.entry = checkBox;
             field.label = nullptr;
 
-            layout->addWidget(checkBox);
+            boundsRow->addWidget(checkBox);
             continue;
         }
 
-        field.label = new QLabel(field.labeltext, settings_window);
+        // Το labeltext μένει όπως είναι (το χρησιμοποιεί το Confirm). Αλλάζει μόνο το κείμενο που φαίνεται.
+        QString shownText = field.labeltext;
+        if (shownText.endsWith(":")) shownText.chop(1);
+        field.label = new QLabel(shownText.toUpper(), settings_window);
+        field.label->setObjectName("SectionLabel");
+        QFont lf("Segoe UI", 9, QFont::DemiBold);
+        lf.setLetterSpacing(QFont::AbsoluteSpacing, 1.5);
+        field.label->setFont(lf);
 
         if (field.labeltext == "Propeller Name:") {
             QComboBox* propellerBox = new QComboBox(settings_window);
             propellerBox->setEditable(true);
+            propellerBox->setMinimumHeight(40);
             propellerBox->lineEdit()->setPlaceholderText("Add new propeller...");
             for (const auto& prop : cfg.propeller_list) propellerBox->addItem(prop);
 
@@ -1740,6 +1797,7 @@ void ThrustStandGUI::customizeExperiment() {
         }
         else if (field.labeltext == "Control Mode:") {
             QComboBox* modeBox = new QComboBox(settings_window);
+            modeBox->setMinimumHeight(40);
             modeBox->addItem("Step Controller", static_cast<int>(ControlMode::StepController));
             modeBox->addItem("PID Controller", static_cast<int>(ControlMode::PIDController));
 
@@ -1749,6 +1807,7 @@ void ThrustStandGUI::customizeExperiment() {
         }
         else if (field.labeltext == "Angle Of Attack (deg):") {
             QComboBox* aoaBox = new QComboBox(settings_window);
+            aoaBox->setMinimumHeight(40);
             for (const auto& val : cfg.aoa_list) aoaBox->addItem(val);
 
             int idx = aoaBox->findText(QString::number(cfg.angle_of_attack));
@@ -1757,6 +1816,7 @@ void ThrustStandGUI::customizeExperiment() {
         }
         else {
             QLineEdit* lineEdit = new QLineEdit(field.initialValue, settings_window);
+            lineEdit->setMinimumHeight(40);
             if (!field.placeholder.isEmpty()) lineEdit->setPlaceholderText(field.placeholder);
 
             if (field.type == SettingsElements::String) {
@@ -1774,11 +1834,30 @@ void ThrustStandGUI::customizeExperiment() {
             field.entry = lineEdit;
         }
 
-        layout->addWidget(field.label);
-        layout->addWidget(field.entry);
+        // Επιλογή ενότητας
+        QGridLayout* target = thrustGrid;
+        if (field.labeltext == "Propeller Name:" ||
+            field.labeltext == "Angle Of Attack (deg):" ||
+            field.labeltext == "Airspeed (m/sec):") {
+            target = generalGrid;
+        }
+        else if (field.labeltext.contains("WaitTime") ||
+            field.labeltext.contains("Delay") ||
+            field.labeltext.contains("Wait After")) {
+            target = timingGrid;
+        }
+
+        addCell(target, field.label, field.entry);
     }
 
-    confirmButton->setStyleSheet(HOVERED_STYLE_SETTINGS);
+    boundsRow->addStretch();
+    layout->addLayout(boundsRow);
+
+    layout->addStretch();
+
+    confirmButton->setObjectName("PrimaryButton");
+    confirmButton->setFixedHeight(48);
+    confirmButton->setCursor(Qt::PointingHandCursor);
     layout->addWidget(confirmButton);
 
     connect(confirmButton, &QPushButton::clicked, this, [this, &cfg, &cal, &tel, fields, settings_window]() mutable {

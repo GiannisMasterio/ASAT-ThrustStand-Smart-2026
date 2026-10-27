@@ -1,4 +1,5 @@
 #pragma once
+#include "VarState.h"
 
 class Controller {
 public:
@@ -18,13 +19,14 @@ public:
 };
 
 class StepController : public Controller {
+
  public:
  
- StepController(double lower_target_bound, double upper_target_bound) {
+ StepController(double lower_target_bound, double upper_target_bound, int throttle_increase_step) {
      this->lower_target_bound = lower_target_bound;
      this->upper_target_bound = upper_target_bound;
      this->current_output_throttle = 0.0; 
-     this->throttle_increase_step = 0; 
+     this->throttle_increase_step = throttle_increase_step;
  }
 
  void reset() override {}
@@ -66,7 +68,7 @@ class StepController : public Controller {
     int throttle_increase_step;
     double lower_target_bound;
     double upper_target_bound;
-    double current_output_throttle;
+    int current_output_throttle;
 };
 
 class PidController : public Controller {
@@ -95,7 +97,7 @@ class PidController : public Controller {
 
         double error = (double)setpoint - current_measurement_value;
         double p_term = error * this->Kp;
-        double d_term = (error - prev_error) / dt;
+        double d_term = this->Kd * (error - prev_error) / dt;
 
         i_term = anti_windup_filter(i_term, dt, error, p_term + i_term + d_term);
   

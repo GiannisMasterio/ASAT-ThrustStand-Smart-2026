@@ -1,6 +1,7 @@
 #ifndef BACKENDHANDLER_H
 #define BACKENDHANDLER_H
 
+#include <random>
 #include "constants.h"
 #include "AutoControl.h"
 #include "audiohandler.h"
@@ -66,7 +67,7 @@ public:
     bool isSoundPlaying(QString audio);
     void setSoundStatus(bool sound_status);
 
-    void initLogFile();
+ 
     void start_mqtt();
     void disconnect_mqtt();
     void change_mqtt_topic();
@@ -80,6 +81,7 @@ public:
 
     void receiveTelemetry(const QString& data, QString source);
 
+    void initLogFile();
     void logToFile(bool status);
 
     double getThrottlePercentage(int current_throttle);
@@ -122,6 +124,11 @@ public:
     QString serial_com_port_tag;
 
     int serial_baudrate = 9600;
+
+    QTimer* simulator_timer = nullptr;
+    double sim_actual_rpm = 0.0;
+    double sim_actual_airspeed = 0.0;
+    std::mt19937 rng{ std::random_device{}() };
 
 protected:
 
@@ -227,7 +234,6 @@ public slots:
     void readSerialData();
 
     void publishMqttMessage(const QString& topic, const QString& payload);
-
 };
 
 #endif
