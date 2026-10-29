@@ -11,7 +11,6 @@
 #include "graphcontainer.h"
 #include "qcustomplot.h"
 #include "PropellerWindow.h"
-#include "BigBatteryWidget.h"
 #include "BatteryWidget.h"
 
 class BackendHandler;
@@ -80,7 +79,6 @@ private slots:
     void chooseSettings();
     void saveSettings();
 
-    void onHomeButtonClicked(const QString& mode);
     void serial_control();
     void onExperimentFinished();
 
@@ -149,7 +147,6 @@ private:
     void updateBottomToolbar();
     void updateArmedState(bool new_arm_status);
 
-    void createHomeScene();
     void createMainScene();
     void createGraphScene();
 

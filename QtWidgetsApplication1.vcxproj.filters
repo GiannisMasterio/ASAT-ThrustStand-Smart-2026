@@ -81,9 +81,6 @@
     <QtMoc Include="BatteryWidget.h">
       <Filter>Header Files</Filter>
     </QtMoc>
-    <QtMoc Include="BigBatteryWidget.h">
-      <Filter>Header Files</Filter>
-    </QtMoc>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Constants.h">
@@ -96,6 +93,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="VarState.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ContainerGraphics.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

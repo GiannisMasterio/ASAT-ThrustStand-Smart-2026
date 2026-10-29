@@ -82,62 +82,6 @@ void ThrustStandGUI::on_closing() {
     backend_handler->disconnect_mqtt();
 }
 
-void ThrustStandGUI::createHomeScene() {
-    QWidget* centralWidget = new QWidget(this);
-    setCentralWidget(centralWidget);
-
-    QString home_scene_backgroundStyle = QString(
-        "QWidget {"
-        "background-image: url(%1);"
-        "background-position: center;"
-        "background-repeat: no-repeat;"
-        "}").arg(HOMESCENE_BG);
-
-    centralWidget->setStyleSheet(home_scene_backgroundStyle);
-
-    QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
-    mainLayout->setAlignment(Qt::AlignCenter);
-
-    QWidget* selectionFrame = new QWidget(centralWidget);
-    selectionFrame->setStyleSheet("background: transparent;");
-    selectionFrame->setAttribute(Qt::WA_TranslucentBackground, true);
-
-    QHBoxLayout* selectionLayout = new QHBoxLayout(selectionFrame);
-    selectionLayout->setSpacing(40);
-
-    QPushButton* experiment_mode_Button = new QPushButton("Experiment", selectionFrame);
-    experiment_mode_Button->setFixedSize(300, 80);
-    connect(experiment_mode_Button, &QPushButton::clicked, this, [this]() { onHomeButtonClicked("Experiment"); });
-
-    QPushButton* basic_mode_Button = new QPushButton("Basic", selectionFrame);
-    basic_mode_Button->setFixedSize(300, 80);
-    connect(basic_mode_Button, &QPushButton::clicked, this, [this]() { onHomeButtonClicked("Basic"); });
-
-    experiment_mode_Button->setStyleSheet(HOVERED_STYLE_HOME);
-    basic_mode_Button->setStyleSheet(HOVERED_STYLE_HOME);
-
-    selectionLayout->addWidget(experiment_mode_Button);
-    selectionLayout->addWidget(basic_mode_Button);
-
-    mainLayout->addStretch(1);
-    mainLayout->addWidget(selectionFrame, 0, Qt::AlignCenter);
-}
-
-void ThrustStandGUI::onHomeButtonClicked(const QString& mode) {
-    backend_handler->set_function_mode(mode);
-
-    backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
-
-    if (mode == "Basic") {
-        first_icon_path = BASIC_MODE_ICONPATH;
-    }
-    else {
-        first_icon_path = EXPERIMENT_MODE_ICONPATH;
-    }
-
-    this->createMainScene();
-}
-
 QFrame* ThrustStandGUI::createBottomToolbar() {
     QFrame* toolbarFrame = new QFrame();
     toolbarFrame->setObjectName("BottomToolbar");
@@ -883,6 +827,60 @@ void ThrustStandGUI::updateArmedState(bool new_arm_status) {
     }
 }
 
+
+
+void ThrustStandGUI::changeScene() {
+    if (lastSceneChange.isValid() && lastSceneChange.elapsed() < 100) {
+        return;
+    }
+    lastSceneChange.start();
+
+    if (graphic_timer) graphic_timer->stop();
+
+    if (current_scene == "MAIN") {
+        current_scene = "GRAPH";
+        this->createGraphScene();
+
+        instantthrustGUI = nullptr;
+        instantcurrentGUI = nullptr;
+        instanttorqueGUI = nullptr;
+        instantrpmGUI = nullptr;
+        instantthrottleGUI = nullptr;
+        instantpowerGUI = nullptr;
+    }
+    else if (current_scene == "GRAPH") {
+        current_scene = "MAIN";
+        this->createMainScene();
+
+        voltageGraph = nullptr;
+        currentGraph = nullptr;
+        powerGraph = nullptr;
+        thrustGraph = nullptr;
+        throttleGraph = nullptr;
+        rpmGraph = nullptr;
+    }
+
+    this->updateBottomToolbar();
+}
+
+void ThrustStandGUI::changeFunctionMode() {
+    QString function_mode = backend_handler->get_function_mode();
+    if (lastFunctionModeChange.isValid() && lastFunctionModeChange.elapsed() < 100) {
+        return;
+    }
+    lastFunctionModeChange.start();
+
+    if (current_scene != "GRAPH") {
+        function_mode = (function_mode == "Basic") ? "Experiment" : "Basic";
+        backend_handler->set_function_mode(function_mode);
+        this->updateBottomToolbar();
+        this->createMainScene();
+    }
+    else {
+        backend_handler->playAudio(100, "ChangeToHomeFirst");
+    }
+}
+
 void ThrustStandGUI::createMainScene() {
     graphic_timer->stop();
 
@@ -936,15 +934,18 @@ void ThrustStandGUI::createMainScene() {
     double maxV = bounds_map.value("Voltage").second;
     int initial_battery_pct = std::clamp((int)((tel.voltage - minV) / (maxV - minV) * 100), 0, 100);
     batteryWidget->setPercentage(initial_battery_pct);
-        
+
     gridLayout->addWidget(instantthrustGUI, 0, 0);
-    gridLayout->addWidget(instantcurrentGUI, 1, 0);
-    gridLayout->addWidget(instantpowerGUI, 2, 0);
-    gridLayout->addWidget(batteryWidget, 0, 1, 3, 1);
     gridLayout->addWidget(instanttorqueGUI, 0, 2);
-    gridLayout->addWidget(instantthrottleGUI, 1, 2);
+
+    gridLayout->addWidget(instantcurrentGUI, 1, 0);
+    gridLayout->addWidget(instantpowerGUI, 1, 2);
+
+    gridLayout->addWidget(instantthrottleGUI, 2, 0);
     gridLayout->addWidget(instantrpmGUI, 2, 2);
 
+    gridLayout->addWidget(batteryWidget, 0, 1, 3, 1);
+    
     gridLayout->setColumnStretch(0, 3);
     gridLayout->setColumnStretch(1, 2);
     gridLayout->setColumnStretch(2, 3);
@@ -964,58 +965,6 @@ void ThrustStandGUI::createMainScene() {
 
     if (backend_handler->get_function_mode() == "Experiment" && !backend_handler->experiment_running) {
         customizeExperiment();
-    }
-}
-
-void ThrustStandGUI::changeScene() {
-    if (lastSceneChange.isValid() && lastSceneChange.elapsed() < 100) {
-        return;
-    }
-    lastSceneChange.start();
-
-    if (graphic_timer) graphic_timer->stop();
-
-    if (current_scene == "MAIN") {
-        current_scene = "GRAPH";
-        this->createGraphScene();
-
-        instantthrustGUI = nullptr;
-        instantcurrentGUI = nullptr;
-        instanttorqueGUI = nullptr;
-        instantrpmGUI = nullptr;
-        instantthrottleGUI = nullptr;
-        instantpowerGUI = nullptr;
-    }
-    else if (current_scene == "GRAPH") {
-        current_scene = "MAIN";
-        this->createMainScene();
-
-        voltageGraph = nullptr;
-        currentGraph = nullptr;
-        powerGraph = nullptr;
-        thrustGraph = nullptr;
-        throttleGraph = nullptr;
-        rpmGraph = nullptr;
-    }
-
-    this->updateBottomToolbar();
-}
-
-void ThrustStandGUI::changeFunctionMode() {
-    QString function_mode = backend_handler->get_function_mode();
-    if (lastFunctionModeChange.isValid() && lastFunctionModeChange.elapsed() < 100) {
-        return;
-    }
-    lastFunctionModeChange.start();
-
-    if (current_scene != "GRAPH") {
-        function_mode = (function_mode == "Basic") ? "Experiment" : "Basic";
-        backend_handler->set_function_mode(function_mode);
-        this->updateBottomToolbar();
-        this->createMainScene();
-    }
-    else {
-        backend_handler->playAudio(100, "ChangeToHomeFirst");
     }
 }
 

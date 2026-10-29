@@ -576,26 +576,53 @@ void BackendHandler::createSliderWindow() {
     }
 
     slider_window = new QDialog(nullptr, Qt::Window);
+    slider_window->setObjectName("ModernDialog");
     slider_window->setWindowTitle(mode + " Mode Configuration");
-    slider_window->setFixedSize(600, 300);
+    slider_window->setFixedSize(620, 400);
     slider_window->setAttribute(Qt::WA_DeleteOnClose);
+    slider_window->setAttribute(Qt::WA_StyledBackground, true);
     slider_window->setWindowIcon(QIcon(ICONPATH));
+    slider_window->setStyleSheet(DIALOG_STYLE);
 
     QVBoxLayout* layout = new QVBoxLayout(slider_window);
-    layout->setAlignment(Qt::AlignCenter);
-    layout->setSpacing(20);
+    layout->setContentsMargins(36, 30, 36, 30);
+    layout->setSpacing(14);
 
-    QLineEdit* value_type_input_field = new QLineEdit(slider_window);
-    value_type_input_field->setFixedSize(120, 30);
-    value_type_input_field->setAlignment(Qt::AlignCenter);
+    // --- Τίτλος ---
+    const bool isManual = (mode == "MANUAL");
+    QString title_text = isManual ? "SET THROTTLE" : "SET RPM";
 
+    QLabel* title_label = new QLabel(title_text, slider_window);
+    title_label->setObjectName("DialogHeader");
+    QFont hf("Segoe UI", 15, QFont::DemiBold);
+    hf.setLetterSpacing(QFont::AbsoluteSpacing, 3);
+    title_label->setFont(hf);
+    title_label->setAlignment(Qt::AlignCenter);
+    layout->addWidget(title_label);
+
+    // --- Μεγάλη τιμή (ενημερώνεται από την updateSliderValue) ---
+    slider_value_label = new QLabel(slider_window);
+    QFont vf("Segoe UI", 40, QFont::Bold);
+    slider_value_label->setFont(vf);
+    slider_value_label->setAlignment(Qt::AlignCenter);
+    slider_value_label->setStyleSheet(QString("color: %1; background: transparent; border: none;").arg(THEME_COLOR));
+    slider_value_label->setMinimumHeight(70);
+    layout->addWidget(slider_value_label);
+
+    layout->addSpacing(6);
+
+    // --- Slider ---
     this->slider = new QSlider(Qt::Horizontal, slider_window);
     slider->setSingleStep(1);
-    slider->setFixedSize(500, 40);
+    slider->setMinimumHeight(36);
+    slider->setCursor(Qt::PointingHandCursor);
 
-    QString title_text;
+    // --- Πεδίο εισαγωγής ---
+    QLineEdit* value_type_input_field = new QLineEdit(slider_window);
+    value_type_input_field->setFixedSize(130, 40);
+    value_type_input_field->setAlignment(Qt::AlignCenter);
 
-    if (mode == "MANUAL") {
+    if (isManual) {
         slider->setRange(cfg.min_throttle, cfg.max_throttle);
         int initial_val = std::clamp(tel.throttle, cfg.min_throttle, cfg.max_throttle);
         slider->setValue(initial_val);
@@ -606,18 +633,48 @@ void BackendHandler::createSliderWindow() {
         value_type_input_field->setValidator(new QDoubleValidator(0, cfg.max_rpm, 1, value_type_input_field));
     }
 
-    QLabel* title_label = new QLabel(title_text, slider_window);
-    title_label->setFont(QFont("Arial", 16, QFont::Bold));
+    layout->addWidget(slider);
 
-    layout->addWidget(title_label, 0, Qt::AlignCenter);
-    layout->addWidget(value_type_input_field, 0, Qt::AlignCenter);
-    layout->addWidget(slider, 0, Qt::AlignCenter);
+    // --- Ελάχιστο / μέγιστο κάτω από το slider ---
+    auto makeEndLabel = [this](const QString& text, Qt::Alignment al) {
+        QLabel* l = new QLabel(text, slider_window);
+        l->setObjectName("SectionLabel");
+        l->setFont(QFont("Segoe UI", 10, QFont::DemiBold));
+        l->setAlignment(al);
+        return l;
+        };
+    const QString unitText = isManual ? "us" : "rpm";
 
-    slider_value_label = new QLabel(slider_window);
-    slider_value_label->setFont(QFont("Arial", 28));
-    slider_value_label->setStyleSheet(QString("color: %1;").arg(THEME_COLOR));
-    layout->addWidget(slider_value_label, 0, Qt::AlignCenter);
+    QHBoxLayout* endsRow = new QHBoxLayout();
+    endsRow->addWidget(makeEndLabel(QString::number(slider->minimum()) + " " + unitText, Qt::AlignLeft | Qt::AlignVCenter));
+    endsRow->addStretch();
+    endsRow->addWidget(makeEndLabel(QString::number(slider->maximum()) + " " + unitText, Qt::AlignRight | Qt::AlignVCenter));
+    layout->addLayout(endsRow);
 
+    layout->addStretch();
+
+    // --- Πεδίο + μονάδα, κεντραρισμένα ---
+    QHBoxLayout* inputRow = new QHBoxLayout();
+    inputRow->setSpacing(10);
+    inputRow->addStretch();
+
+    QLabel* inputCaption = new QLabel("VALUE", slider_window);
+    inputCaption->setObjectName("SectionLabel");
+    QFont cf("Segoe UI", 10, QFont::DemiBold);
+    cf.setLetterSpacing(QFont::AbsoluteSpacing, 2);
+    inputCaption->setFont(cf);
+
+    QLabel* inputUnit = new QLabel(unitText, slider_window);
+    inputUnit->setObjectName("SectionLabel");
+    inputUnit->setFont(QFont("Segoe UI", 11, QFont::DemiBold));
+
+    inputRow->addWidget(inputCaption);
+    inputRow->addWidget(value_type_input_field);
+    inputRow->addWidget(inputUnit);
+    inputRow->addStretch();
+    layout->addLayout(inputRow);
+
+    // --- Συνδέσεις (αμετάβλητες) ---
     QObject::connect(slider, &QSlider::valueChanged, this, &BackendHandler::updateSliderValue);
     QObject::connect(slider, &QSlider::valueChanged, value_type_input_field, [value_type_input_field](int val) {
         value_type_input_field->setText(QString::number(val));
@@ -638,7 +695,7 @@ void BackendHandler::createSliderWindow() {
     value_type_input_field->setText(QString::number(slider->value()));
 
     // Ενημερώνουμε ΜΟΝΟ το κείμενο στην οθόνη κατά το άνοιγμα, ΔΕΝ στέλνουμε MQTT εντολή!
-    if (mode == "MANUAL") {
+    if (isManual) {
         double pct = qMax(0.0, getThrottlePercentage(slider->value()));
         slider_value_label->setText(QString::number(pct, 'f', 2) + " %");
     }
