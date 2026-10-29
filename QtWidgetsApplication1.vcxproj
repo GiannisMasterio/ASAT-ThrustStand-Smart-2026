@@ -143,6 +143,7 @@ Qt6Mqtt.lib;%(AdditionalDependencies)</AdditionalDependencies>
     <QtMoc Include="MqttClient.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ContainerGraphics.h" />
     <ClInclude Include="VarState.h" />
     <QtMoc Include="AudioHandler.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(QtMsBuild)\qt_vars.target" "$(QtMsBuild)\qt_moc.target"</Command>
@@ -153,7 +154,6 @@ Qt6Mqtt.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClInclude>
     <QtMoc Include="BatteryWidget.h" />
-    <QtMoc Include="BigBatteryWidget.h" />
     <ClInclude Include="Constants.h" />
     <QtMoc Include="QCustomPlot.h" />
     <QtMoc Include="GraphContainer.h" />

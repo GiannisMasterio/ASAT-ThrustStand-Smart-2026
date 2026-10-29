@@ -46,23 +46,19 @@ Containers::Containers(const QString& title, int titleSize, const QString& title
     "border-radius: 28px;" "}");
 }
 
-QString Containers::formatValueText(double v) const {
-    return QString(
-        "<span style='font-size:60pt; font-weight:700; color:white;'>%1</span>"
-        "<span style='font-size:24pt; font-weight:600; color:%2;'>&nbsp;%3</span>")
-        .arg(v, 0, 'f', 2).arg(THEME_COLOR).arg(unit);
-}
-
-QString Containers::barStyle(const QString& color) const {
-    return QString(
-        "QProgressBar { background-color: rgba(255,255,255,30); border: none; border-radius: 5px; }"
-        "QProgressBar::chunk { background-color: %1; border-radius: 5px; }").arg(color);
-}
-
 void Containers::design() {
+
     QVBoxLayout* frameLayout = new QVBoxLayout(this);
     frameLayout->setAlignment(Qt::AlignCenter);
-    frameLayout->setSpacing(6);
+    frameLayout->setContentsMargins(24, 22, 24, 22);   // ήταν default
+    frameLayout->setSpacing(14);
+
+    if (containerGraphics().contains(quantity)) {
+        graphic = containerGraphics().value(quantity)(this);
+    }
+
+    const bool useGraphic = containerGraphics().contains(quantity);
+    if (!useGraphic) frameLayout->addStretch(1);
 
     frameLayout->addStretch(1);
 
@@ -75,9 +71,25 @@ void Containers::design() {
     title_label->setStyleSheet("color: rgba(203,213,225,230); border: none; background: transparent;");
     frameLayout->addWidget(title_label, 0, Qt::AlignCenter);
 
+    if (useGraphic) {
+        double maxV = value_limit.value(quantity);
+
+        if (quantity == "Throttle") {
+            maxV = 100.0;             
+        }
+        else if (quantity == "RPM" && backend_handler->cfg.max_rpm > 0) {
+            maxV = backend_handler->cfg.max_rpm;
+        }
+
+        graphic->setRange(0.0, maxV);
+        graphic->setValue(toDisplayValue(value));  
+
+        frameLayout->addWidget(graphic, 1);
+        return;
+    }
+
     // Τιμή + μονάδα
-    double shown = value;
-    if (quantity == "Throttle") shown = qMax(0.0, backend_handler->getThrottlePercentage((int)value));
+    double shown = toDisplayValue(value);
 
     value_label = new QLabel(formatValueText(shown), this);
     value_label->setTextFormat(Qt::RichText);
@@ -85,6 +97,14 @@ void Containers::design() {
     value_label->setFont(QFont("Segoe UI"));
     value_label->setStyleSheet("border: none; background: transparent;");
     frameLayout->addWidget(value_label, 0, Qt::AlignCenter);
+
+    footer = new QWidget(this);
+    footer->setObjectName("CardFooter");
+    footer->setFixedHeight(44);
+    footer->setStyleSheet("QWidget#CardFooter { background: transparent; border: none; }");
+    QVBoxLayout* footerLayout = new QVBoxLayout(footer);
+    footerLayout->setContentsMargins(0, 0, 0, 0);
+    footerLayout->setAlignment(Qt::AlignCenter);
 
     if (has_bar) {
         progress_bar = new QProgressBar(this);
@@ -190,10 +210,16 @@ void Containers::updateData(double newValue) {
     backend_handler->handleMode();
     backend_handler->setValue(newValue);
 
+    if (graphic) {       
+        graphic->setValue(quantity == "Throttle" ? qMax(0.0, backend_handler->getThrottlePercentage(backend_handler->tel.throttle)) : value);
+        return;
+    }
+
     double shown = value;
     if (quantity == "Throttle") shown = backend_handler->getThrottlePercentage((int)value);
     
     value_label->setText(formatValueText(shown));
+
 
     if (has_bar && progress_bar) {
         double displayProgress = value;
@@ -202,7 +228,6 @@ void Containers::updateData(double newValue) {
             double minV = low_bound; 
             double maxV = value_limit.value(quantity);
 
-            // Υπολογισμός ποσοστού: (Τωρινή - Ελάχιστη) / (Μέγιστη - Ελάχιστη) * MaxRangeΤηςΜπάρας
             displayProgress = ((value - minV) / (maxV - minV)) * maxV;
         }
 
@@ -233,4 +258,23 @@ void Containers::handleModeChange(const QString& newMode) {
             else opener->setText("Set RPM");
         }
     }
+}
+
+double Containers::toDisplayValue(double raw) const {
+    if (quantity == "Throttle")
+        return qMax(0.0, backend_handler->getThrottlePercentage(static_cast<int>(raw)));
+    return raw;
+}
+
+QString Containers::formatValueText(double v) const {
+    return QString(
+        "<span style='font-size:60pt; font-weight:700; color:white;'>%1</span>"
+        "<span style='font-size:24pt; font-weight:600; color:%2;'>&nbsp;%3</span>")
+        .arg(v, 0, 'f', 2).arg(THEME_COLOR).arg(unit);
+}
+
+QString Containers::barStyle(const QString& color) const {
+    return QString(
+        "QProgressBar { background-color: rgba(255,255,255,30); border: none; border-radius: 5px; }"
+        "QProgressBar::chunk { background-color: %1; border-radius: 5px; }").arg(color);
 }

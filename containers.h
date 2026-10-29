@@ -5,13 +5,12 @@
 #include <QFrame>
 #include <QString>
 #include "backendhandler.h"
-
-
+#include "containergraphics.h"
+    
 class QLabel;
 class QProgressBar;
 class QCheckBox;
 class QPushButton;
-class ThrustStandGUI;
 
 class Containers : public QFrame
 {
@@ -19,8 +18,7 @@ class Containers : public QFrame
 
 public:
     explicit Containers(const QString& title, int titleSize, const QString& titleColor,
-        double initialValue, bool hasBar, BackendHandler* backend_handler,
-        QWidget* parent = nullptr);
+        double initialValue, bool hasBar, BackendHandler* backend_handler, QWidget* parent = nullptr);
 
     ~Containers() override = default;
 
@@ -32,6 +30,7 @@ public slots:
 private:
     
     BackendHandler* backend_handler = nullptr;
+    ValueGraphic* graphic = nullptr;
 
     QString title_text;
     int title_label_size;
@@ -53,12 +52,14 @@ private:
     QProgressBar* progress_bar = nullptr;
 
     QWidget* control_frame = nullptr;
+	QWidget* footer = nullptr;
     QCheckBox* toggle_switch = nullptr;
     QPushButton* slider_opener_button = nullptr;
 
     void checkBoundsAndSetColor(double currentValue);
     void design();
     void setupControlElements();
+    double toDisplayValue(double raw) const;
     QString formatValueText(double v) const;
     QString barStyle(const QString& color) const;
 };
