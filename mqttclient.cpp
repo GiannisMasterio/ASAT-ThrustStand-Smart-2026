@@ -1,6 +1,6 @@
-#include "mqttclient.h"
+ο»Ώ#include "mqttclient.h"
 #include <QDebug>
-#include <QtMqtt/QMqttTopicName> // Χρειάζεται για το publish
+#include <QtMqtt/QMqttTopicName> // Ξ§ΟΞµΞΉΞ¬Ξ¶ΞµΟ„Ξ±ΞΉ Ξ³ΞΉΞ± Ο„ΞΏ publish
 
 MqttClient::MqttClient(const QString& host, quint16 port, const QString& receiveTopic, const QString& sendTopic, QObject* parent)
     : QObject(parent),

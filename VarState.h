@@ -66,7 +66,7 @@ struct CalibrationConfig {
     double thrust_offset = 0.0;
     double current_offset = 0.0;
 
-    float gravity = 9.81;
+    float gravity = 9.81f;
 };
 
 struct MqttConfig {

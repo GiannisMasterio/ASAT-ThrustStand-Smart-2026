@@ -38,9 +38,6 @@
     <ClCompile Include="propellerwindow.h">
       <Filter>Header Files</Filter>
     </ClCompile>
-    <ClCompile Include="Battery.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Main.cpp">

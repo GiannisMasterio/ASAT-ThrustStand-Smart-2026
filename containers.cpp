@@ -1,4 +1,4 @@
-#include "containers.h"
+ο»Ώ#include "containers.h"
 #include "constants.h"
 #include "backendhandler.h"
 #include <QVBoxLayout>
@@ -35,7 +35,7 @@ Containers::Containers(const QString& title, int titleSize, const QString& title
 
     design();
 
-    if ((quantity == "Throttle") && (function_mode == "Basic")){ // αναλογα το text που βαζω στο title καταλαβαινω το quantity
+    if ((quantity == "Throttle") && (function_mode == "Basic")){ // Ξ±Ξ½Ξ±Ξ»ΞΏΞ³Ξ± Ο„ΞΏ text Ο€ΞΏΟ… Ξ²Ξ±Ξ¶Ο‰ ΟƒΟ„ΞΏ title ΞΊΞ±Ο„Ξ±Ξ»Ξ±Ξ²Ξ±ΞΉΞ½Ο‰ Ο„ΞΏ quantity
         setupControlElements();
         QObject::connect(backend_handler, &BackendHandler::modeChanged, this, &Containers::handleModeChange);
     }
@@ -50,7 +50,7 @@ void Containers::design() {
 
     QVBoxLayout* frameLayout = new QVBoxLayout(this);
     frameLayout->setAlignment(Qt::AlignCenter);
-    frameLayout->setContentsMargins(24, 22, 24, 22);   // ήταν default
+    frameLayout->setContentsMargins(24, 22, 24, 22);   // Ξ®Ο„Ξ±Ξ½ default
     frameLayout->setSpacing(14);
 
     if (containerGraphics().contains(quantity)) {
@@ -62,7 +62,7 @@ void Containers::design() {
 
     frameLayout->addStretch(1);
 
-    // Τίτλος: κεφαλαία, απαλό γκρι, απόσταση γραμμάτων
+    // Ξ¤Ξ―Ο„Ξ»ΞΏΟ‚: ΞΊΞµΟ†Ξ±Ξ»Ξ±Ξ―Ξ±, Ξ±Ο€Ξ±Ξ»Ο Ξ³ΞΊΟΞΉ, Ξ±Ο€ΟΟƒΟ„Ξ±ΟƒΞ· Ξ³ΟΞ±ΞΌΞΌΞ¬Ο„Ο‰Ξ½
     title_label = new QLabel(title_text.toUpper(), this);
     title_label->setAlignment(Qt::AlignCenter);
     QFont tf("Segoe UI", title_label_size, QFont::DemiBold);
@@ -88,7 +88,7 @@ void Containers::design() {
         return;
     }
 
-    // Τιμή + μονάδα
+    // Ξ¤ΞΉΞΌΞ® + ΞΌΞΏΞ½Ξ¬Ξ΄Ξ±
     double shown = toDisplayValue(value);
 
     value_label = new QLabel(formatValueText(shown), this);

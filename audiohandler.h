@@ -1,4 +1,4 @@
-#ifndef AUDIOHANDLER_H
+О╩©#ifndef AUDIOHANDLER_H
 #define AUDIOHANDLER_H
 
 #include <QObject>
@@ -47,7 +47,7 @@ class AudioHandler : public QObject {
 
 public:
     explicit AudioHandler(QObject* parent = nullptr) : QObject(parent), soundOn(true) {
-        // пяожоятымы тоус гвоус стг лмглг
+        // н═н║н÷н╕н÷н║н╓н╘н²н╘ н╓н÷н╔нё н≈н╖н÷н╔нё нён╓н≈ н°н²н≈н°н≈
 
         for (auto it = audio_paths.begin(); it != audio_paths.end(); ++it) {
             QSoundEffect* effect = new QSoundEffect(this);

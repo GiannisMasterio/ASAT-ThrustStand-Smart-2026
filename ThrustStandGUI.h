@@ -49,12 +49,6 @@ struct LogEntry {
 
 enum IconType { Mode, Scene, Logging, EscapeExperiment, Propeller, Tuning, StopMotor, Status, Calibration, Settings, Save };
 
-enum class ControlMode {
-    StepController,
-    PIDController,
-    ADRController
-};
-
 class ThrustStandGUI : public QMainWindow
 {
     Q_OBJECT
@@ -65,7 +59,6 @@ public:
 
     static QString getHoverStyle(const QString& baseColor);
 
-    ControlMode active_control_mode = ControlMode::StepController;
     BackendHandler* backend_handler = nullptr;
 
 private slots:
@@ -125,6 +118,7 @@ private:
     QTimer* graphic_timer = nullptr;
 
     QVector<SettingsElements> settings_fields;
+    QVector<SettingsElements> experiment_fields;
 
     GraphContainer* thrustGraph = nullptr;
     GraphContainer* rpmGraph = nullptr;
@@ -164,6 +158,7 @@ private:
     void stopMotor();
 
     void setupSettingsFields();
+    void setupExperimentFields();
     void loadSettings();
 
 protected:

@@ -4,18 +4,11 @@
 #include "constants.h"
 #include <functional>
 
-QString HOVERED_STYLE = ThrustStandGUI::getHoverStyle(THEME_COLOR);
-QString HOVERED_STYLE_HOME = ThrustStandGUI::getHoverStyle(HOME_BUTTON_COLOR);
-
-QString HOVERED_STYLE_SETTINGS = QString(
-    "QPushButton { background-color: %1; color: white; font-weight: bold; }"
-    "QPushButton:hover { background-color: blue; }"
-).arg(THEME_COLOR);
-
 ThrustStandGUI::ThrustStandGUI(QWidget* parent) : QMainWindow(parent)
 {
     backend_handler = new BackendHandler(this, nullptr);
     setupSettingsFields();
+    setupExperimentFields();
     loadSettings();
 
     setWindowTitle(WINDOW_NAME);
@@ -1240,6 +1233,43 @@ void ThrustStandGUI::setupSettingsFields() {
     };
 }
 
+void ThrustStandGUI::setupExperimentFields() {
+
+    auto& cfg = backend_handler->cfg;
+    auto& cal = backend_handler->cal;
+    auto& mqttcfg = backend_handler->mqttcfg;
+
+    experiment_fields = QVector<SettingsElements> {
+        // --- General Settings ---
+        {"Propeller Name:", "", "", false, &cfg.propeller_name, SettingsElements::String},
+        {"Thrust Threshold:", "", "", false, &cfg.stabilize_target_threshold, SettingsElements::Double},
+
+        // --- Aerodynamics / Environment ---
+        {"Angle Of Attack (deg):", "", "", true, &cfg.angle_of_attack, SettingsElements::Double},
+        {"Airspeed (m/sec):", "", "Enter airspeed in m/sec", true, &cfg.airspeed, SettingsElements::Double},
+
+        // --- Thrust & RPM Parameters ---
+        {"Thrust Clemency:", "", "", true, &cfg.thrust_clemency, SettingsElements::Double},
+        {"RPM Step:", "", "", true, &cfg.rpm_step, SettingsElements::Int},
+        {"Max RPM:", "", "", true, &cfg.max_rpm, SettingsElements::Int},
+        {"RPM Clemency:", "", "", true, &cfg.rpm_clemency, SettingsElements::Int},
+        {"Use MaxRPM Logic:", "", "", false, &(backend_handler->use_max_rpm_logic), SettingsElements::Bool},
+
+        // --- Timings & Delays ---
+        {"Thrust Stabilizing WaitTime (ms):", "", "", true, &cfg.thrust_stab_wait_time_ms, SettingsElements::Int},
+        {"Transition Delay Time (ms):", "", "", true, &cfg.transition_delay_ms, SettingsElements::Int},
+        {"Wait After Thrust (ms):", "", "", true, &cfg.record_data_wait_time_ms, SettingsElements::Int},
+
+        // --- Calibration ---
+        {"Thrust Offset (N):", "", "", true, &cal.thrust_offset, SettingsElements::Double},
+
+        // --- Experiment Bounds ---
+        {"First Experiment", "", "", true, &cfg.first_experiment, SettingsElements::Bool},
+        {"Last Experiment", "", "", true, &cfg.last_experiment, SettingsElements::Bool}
+    };
+   
+}
+
 void ThrustStandGUI::chooseSettings() {
     auto& cfg = backend_handler->cfg;
     auto& cal = backend_handler->cal;
@@ -1599,10 +1629,8 @@ void ThrustStandGUI::loadSettings() {
     qDebug() << "Settings loaded successfully!";
 }
 
-void ThrustStandGUI::windowCreate() {
-}
-
 void ThrustStandGUI::customizeExperiment() {
+
     auto& cfg = backend_handler->cfg;
     auto& cal = backend_handler->cal;
     auto& tel = backend_handler->tel;
@@ -1621,7 +1649,6 @@ void ThrustStandGUI::customizeExperiment() {
     layout->setContentsMargins(32, 26, 32, 26);
     layout->setSpacing(10);
 
-    // --- Επικεφαλίδα ---
     QLabel* header = new QLabel("EXPERIMENT SETTINGS", settings_window);
     header->setObjectName("DialogHeader");
     QFont hf("Segoe UI", 15, QFont::DemiBold);
@@ -1631,7 +1658,6 @@ void ThrustStandGUI::customizeExperiment() {
     layout->addWidget(header);
     layout->addSpacing(8);
 
-    // --- Helper: τίτλος ενότητας + grid με 3 στήλες ---
     auto createSection = [&](const QString& title) {
         QLabel* t = new QLabel(title, settings_window);
         t->setObjectName("SectionLabel");
@@ -1670,37 +1696,8 @@ void ThrustStandGUI::customizeExperiment() {
         grid->addWidget(cell, n / 3, n % 3);
         };
 
-    QVector<SettingsElements> experiment_fields = {
-        // --- General Settings ---
-        {"Propeller Name:", "", "", false, &cfg.propeller_name, SettingsElements::String},
-        {"Thrust Threshold:", "", "", false, &cfg.stabilize_target_threshold, SettingsElements::Double},
-
-        // --- Aerodynamics / Environment ---
-        {"Angle Of Attack (deg):", "", "", true, &cfg.angle_of_attack, SettingsElements::Double},
-        {"Airspeed (m/sec):", "", "Enter airspeed in m/sec", true, &cfg.airspeed, SettingsElements::Double},
-
-        // --- Thrust & RPM Parameters ---
-        {"Thrust Clemency:", "", "", true, &cfg.thrust_clemency, SettingsElements::Double},
-        {"RPM Step:", "", "", true, &cfg.rpm_step, SettingsElements::Int},
-        {"Max RPM:", "", "", true, &cfg.max_rpm, SettingsElements::Int},
-        {"RPM Clemency:", "", "", true, &cfg.rpm_clemency, SettingsElements::Int},
-
-        // --- Timings & Delays ---
-        {"Thrust Stabilizing WaitTime (ms):", "", "", true, &cfg.thrust_stab_wait_time_ms, SettingsElements::Int},
-        {"Transition Delay Time (ms):", "", "", true, &cfg.transition_delay_ms, SettingsElements::Int},
-        {"Wait After Thrust (ms):", "", "", true, &cfg.record_data_wait_time_ms, SettingsElements::Int},
-
-        // --- Calibration ---
-        {"Thrust Offset (N):", "", "", true, &cal.thrust_offset, SettingsElements::Double},
-
-        // --- Experiment Bounds ---
-        {"First Experiment", "", "", true, &cfg.first_experiment, SettingsElements::Bool},
-        {"Last Experiment", "", "", true, &cfg.last_experiment, SettingsElements::Bool}
-    };
-
     QPushButton* confirmButton = new QPushButton("Confirm Settings", settings_window);
 
-    // Οι δύο checkboxes μπαίνουν σε μία γραμμή κάτω από τις ενότητες
     QHBoxLayout* boundsRow = new QHBoxLayout();
     boundsRow->setSpacing(30);
     boundsRow->addStretch();
@@ -1739,16 +1736,6 @@ void ThrustStandGUI::customizeExperiment() {
             if (idx != -1) propellerBox->setCurrentIndex(idx);
             else propellerBox->setCurrentText(cfg.propeller_name);
             field.entry = propellerBox;
-        }
-        else if (field.labeltext == "Control Mode:") {
-            QComboBox* modeBox = new QComboBox(settings_window);
-            modeBox->setMinimumHeight(40);
-            modeBox->addItem("Step Controller", static_cast<int>(ControlMode::StepController));
-            modeBox->addItem("PID Controller", static_cast<int>(ControlMode::PIDController));
-
-            int defaultIndex = (active_control_mode == ControlMode::PIDController) ? 1 : 0;
-            modeBox->setCurrentIndex(defaultIndex);
-            field.entry = modeBox;
         }
         else if (field.labeltext == "Angle Of Attack (deg):") {
             QComboBox* aoaBox = new QComboBox(settings_window);
@@ -1805,14 +1792,14 @@ void ThrustStandGUI::customizeExperiment() {
     confirmButton->setCursor(Qt::PointingHandCursor);
     layout->addWidget(confirmButton);
 
-    connect(confirmButton, &QPushButton::clicked, this, [this, &cfg, &cal, &tel, experiment_fields, settings_window]() mutable {
+    connect(confirmButton, &QPushButton::clicked, this, [this, &cfg, &cal, &tel, settings_window]() mutable {
+
         auto findEntryByLabel = [&](const QString& label) -> QWidget* {
             for (const auto& field : experiment_fields) {
                 if (field.labeltext == label) return field.entry;
             }
             return nullptr;
             };
-
         auto getEntryText = [&](const QString& label) -> QString {
             QLineEdit* entry = qobject_cast<QLineEdit*>(findEntryByLabel(label));
             return entry ? entry->text().trimmed() : "";
@@ -1821,15 +1808,6 @@ void ThrustStandGUI::customizeExperiment() {
         QComboBox* propBox = qobject_cast<QComboBox*>(findEntryByLabel("Propeller Name:"));
         QComboBox* modeBox = qobject_cast<QComboBox*>(findEntryByLabel("Control Mode:"));
         QComboBox* aoaBox = qobject_cast<QComboBox*>(findEntryByLabel("Angle Of Attack (deg):"));
-
-        if (modeBox) {
-            ControlMode selected_mode = static_cast<ControlMode>(modeBox->currentData().toInt());
-            if (active_control_mode != selected_mode) {
-                backend_handler->unsaved_settings_changes = true;
-            }
-            active_control_mode = selected_mode;
-            backend_handler->setActiveController(modeBox->currentText());
-        }
 
         QString new_propeller_name = propBox ? propBox->currentText() : cfg.propeller_name;
         if (!new_propeller_name.isEmpty() && !cfg.propeller_list.contains(new_propeller_name)) {
@@ -1843,11 +1821,13 @@ void ThrustStandGUI::customizeExperiment() {
         cfg.max_rpm = getEntryText("Max RPM:").toUInt();
         cfg.thrust_clemency = getEntryText("Thrust Clemency:").toDouble();
         cfg.rpm_clemency = getEntryText("RPM Clemency:").toInt();
+        cfg.stabilize_target_threshold = getEntryText("Thrust Threshold:").toDouble();
         cfg.throttle_increase_step = getEntryText("Throttle Increase Step:").toDouble();
         cfg.record_data_wait_time_ms = getEntryText("Wait After Thrust (ms):").toInt();
         cfg.thrust_stab_wait_time_ms = getEntryText("Thrust Stabilizing WaitTime (ms):").toInt();
         cfg.transition_delay_ms = getEntryText("Transition Delay Time (ms):").toInt();
-
+        QCheckBox* cbMaxRpm = qobject_cast<QCheckBox*>(findEntryByLabel("Use MaxRPM Logic:"));
+        backend_handler->use_max_rpm_logic = cbMaxRpm ? cbMaxRpm->isChecked() : false;
         double new_thrust_offset = getEntryText("Thrust Offset (N):").toDouble();
 
         QCheckBox* cbFirst = qobject_cast<QCheckBox*>(findEntryByLabel("First Experiment"));
@@ -1876,10 +1856,12 @@ void ThrustStandGUI::customizeExperiment() {
         this->updateBottomToolbar();
         this->start_experiment();
 
-        settings_window->close();
-        });
+        settings_window->close(); });
 
     settings_window->show();
+}
+
+void ThrustStandGUI::windowCreate() {
 }
 
 void ThrustStandGUI::start_experiment() {

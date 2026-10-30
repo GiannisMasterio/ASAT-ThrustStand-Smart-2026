@@ -1,4 +1,4 @@
-#ifndef BACKENDHANDLER_H
+ο»Ώ#ifndef BACKENDHANDLER_H
 #define BACKENDHANDLER_H
 
 #include <random>
@@ -130,6 +130,8 @@ public:
     double sim_actual_airspeed = 0.0;
     std::mt19937 rng{ std::random_device{}() };
 
+    bool use_max_rpm_logic = false;
+
 protected:
 
     QDateTime stage3_start_time;
@@ -174,8 +176,6 @@ private:
 
     QTimer* mqtt_data_timer = nullptr;
 
-    bool use_max_rpm_logic = false;
-
     double Kp = 0.005;
     double Ki = 0.001; 
     double Kd = 0; // Just Zero for ThrustStand
@@ -187,7 +187,7 @@ private:
     int max_thrust_samples = 0;
     int max_transition_samples = 0;
 
-    int experiment_stage = IncrementRPMTarget; // το αρχικοποιώ σε αυτήν την κατάσταση
+    int experiment_stage = IncrementRPMTarget; // Ο„ΞΏ Ξ±ΟΟ‡ΞΉΞΊΞΏΟ€ΞΏΞΉΟ ΟƒΞµ Ξ±Ο…Ο„Ξ®Ξ½ Ο„Ξ·Ξ½ ΞΊΞ±Ο„Ξ¬ΟƒΟ„Ξ±ΟƒΞ·
 
     int transition_delay_ms = TRANSITION_DELAY_TIME_MS;
 

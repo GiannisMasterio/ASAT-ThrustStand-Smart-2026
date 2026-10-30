@@ -1,4 +1,4 @@
-#include "backendhandler.h"
+ο»Ώ#include "backendhandler.h"
 #include <QDebug>
 #include <QPushButton>
 #include <QLabel>
@@ -220,7 +220,7 @@ void BackendHandler::logToFile(bool status) {
     QString timestamp = QDateTime::currentDateTime().toString("HH:mm:ss");
     double throttle_pct = getThrottlePercentage(tel.throttle);
 
-    // ΔΥΝΑΜΙΚΗ ΛΙΣΤΑ LOGGING: Προσθέτεις/αφαιρείς ό,τι θες εδώ σε 1 γραμμή!
+    // Ξ”Ξ¥ΞΞ‘ΞΞ™ΞΞ— Ξ›Ξ™Ξ£Ξ¤Ξ‘ LOGGING: Ξ ΟΞΏΟƒΞΈΞ­Ο„ΞµΞΉΟ‚/Ξ±Ο†Ξ±ΞΉΟΞµΞ―Ο‚ Ο,Ο„ΞΉ ΞΈΞµΟ‚ ΞµΞ΄Ο ΟƒΞµ 1 Ξ³ΟΞ±ΞΌΞΌΞ®!
     QVector<QPair<QString, QString>> log_columns = {
         {"Timestamp",                 timestamp},
         {"Thrust (N)",                QString::number(tel.thrust, 'f', 2)},
@@ -237,7 +237,7 @@ void BackendHandler::logToFile(bool status) {
 
     QTextStream out(&file);
 
-    // Αν το αρχείο είναι άδειο, γράφει αυτόματα τις επικεφαλίδες από τη λίστα!
+    // Ξ‘Ξ½ Ο„ΞΏ Ξ±ΟΟ‡ΞµΞ―ΞΏ ΞµΞ―Ξ½Ξ±ΞΉ Ξ¬Ξ΄ΞµΞΉΞΏ, Ξ³ΟΞ¬Ο†ΞµΞΉ Ξ±Ο…Ο„ΟΞΌΞ±Ο„Ξ± Ο„ΞΉΟ‚ ΞµΟ€ΞΉΞΊΞµΟ†Ξ±Ξ»Ξ―Ξ΄ΞµΟ‚ Ξ±Ο€Ο Ο„Ξ· Ξ»Ξ―ΟƒΟ„Ξ±!
     if (write_header) {
         for (const auto& col : log_columns) {
             out << QString("%1 ").arg(col.first, label_width);
@@ -245,7 +245,7 @@ void BackendHandler::logToFile(bool status) {
         out << "\n";
     }
 
-    // Γράφει τις τιμές
+    // Ξ“ΟΞ¬Ο†ΞµΞΉ Ο„ΞΉΟ‚ Ο„ΞΉΞΌΞ­Ο‚
     for (const auto& col : log_columns) {
         out << QString("%1 ").arg(col.second, label_width);
     }
@@ -293,7 +293,7 @@ bool BackendHandler::connectSerial(const QString& portName, int baudrate) {
     serial_baudrate = baudrate;
 
     playAudio(audio_click_sfx_volume, "MainClick");
-    confirmPort(); // Η υπάρχουσα συνάρτησή σου για σύνδεση
+    confirmPort(); // Ξ— Ο…Ο€Ξ¬ΟΟ‡ΞΏΟ…ΟƒΞ± ΟƒΟ…Ξ½Ξ¬ΟΟ„Ξ·ΟƒΞ® ΟƒΞΏΟ… Ξ³ΞΉΞ± ΟƒΟΞ½Ξ΄ΞµΟƒΞ·
 
     return isSerialConnected();
 }
@@ -338,7 +338,7 @@ void BackendHandler::serial_sendCommand(QString command) {
 void BackendHandler::chooseLogLocation() {
     QString initialDir = QFileInfo(log_file_path).path();
     QString newFilePath = QFileDialog::getSaveFileName(
-        nullptr, // ΔΙΟΡΘΩΣΗ: nullptr αντί για this (επειδή το BackendHandler δεν είναι QWidget)
+        nullptr, // Ξ”Ξ™ΞΞ΅ΞΞ©Ξ£Ξ—: nullptr Ξ±Ξ½Ο„Ξ― Ξ³ΞΉΞ± this (ΞµΟ€ΞµΞΉΞ΄Ξ® Ο„ΞΏ BackendHandler Ξ΄ΞµΞ½ ΞµΞ―Ξ½Ξ±ΞΉ QWidget)
         "Select Log File Location",
         initialDir,
         "CSV Log (*.csv);;Text Log (*.txt);;All files (*.*)"
@@ -375,7 +375,7 @@ void BackendHandler::openLogFile() {
 void BackendHandler::start_mqtt() {
     if (mqttcfg.mqtt_client) {
         mqttcfg.mqtt_client->disconnectFromBroker();
-        delete mqttcfg.mqtt_client; // διαγραφη παλιου reference
+        delete mqttcfg.mqtt_client; // Ξ΄ΞΉΞ±Ξ³ΟΞ±Ο†Ξ· Ο€Ξ±Ξ»ΞΉΞΏΟ… reference
         mqttcfg.mqtt_client = nullptr;
     }
     mqttcfg.mqtt_client = new MqttClient(mqttcfg.mqtt_broker, mqttcfg.mqtt_port, mqttcfg.mqtt_receive_topic, mqttcfg.mqtt_send_topic, this);
@@ -534,7 +534,7 @@ void BackendHandler::createSliderWindow() {
     layout->setContentsMargins(36, 30, 36, 30);
     layout->setSpacing(14);
 
-    // --- Τίτλος ---
+    // --- Ξ¤Ξ―Ο„Ξ»ΞΏΟ‚ ---
     const bool isManual = (mode == "MANUAL");
     QString title_text = isManual ? "SET THROTTLE" : "SET RPM";
 
@@ -546,7 +546,7 @@ void BackendHandler::createSliderWindow() {
     title_label->setAlignment(Qt::AlignCenter);
     layout->addWidget(title_label);
 
-    // --- Μεγάλη τιμή (ενημερώνεται από την updateSliderValue) ---
+    // --- ΞΞµΞ³Ξ¬Ξ»Ξ· Ο„ΞΉΞΌΞ® (ΞµΞ½Ξ·ΞΌΞµΟΟΞ½ΞµΟ„Ξ±ΞΉ Ξ±Ο€Ο Ο„Ξ·Ξ½ updateSliderValue) ---
     slider_value_label = new QLabel(slider_window);
     QFont vf("Segoe UI", 40, QFont::Bold);
     slider_value_label->setFont(vf);
@@ -563,7 +563,7 @@ void BackendHandler::createSliderWindow() {
     slider->setMinimumHeight(36);
     slider->setCursor(Qt::PointingHandCursor);
 
-    // --- Πεδίο εισαγωγής ---
+    // --- Ξ ΞµΞ΄Ξ―ΞΏ ΞµΞΉΟƒΞ±Ξ³Ο‰Ξ³Ξ®Ο‚ ---
     QLineEdit* value_type_input_field = new QLineEdit(slider_window);
     value_type_input_field->setFixedSize(130, 40);
     value_type_input_field->setAlignment(Qt::AlignCenter);
@@ -581,7 +581,7 @@ void BackendHandler::createSliderWindow() {
 
     layout->addWidget(slider);
 
-    // --- Ελάχιστο / μέγιστο κάτω από το slider ---
+    // --- Ξ•Ξ»Ξ¬Ο‡ΞΉΟƒΟ„ΞΏ / ΞΌΞ­Ξ³ΞΉΟƒΟ„ΞΏ ΞΊΞ¬Ο„Ο‰ Ξ±Ο€Ο Ο„ΞΏ slider ---
     auto makeEndLabel = [this](const QString& text, Qt::Alignment al) {
         QLabel* l = new QLabel(text, slider_window);
         l->setObjectName("SectionLabel");
@@ -599,7 +599,7 @@ void BackendHandler::createSliderWindow() {
 
     layout->addStretch();
 
-    // --- Πεδίο + μονάδα, κεντραρισμένα ---
+    // --- Ξ ΞµΞ΄Ξ―ΞΏ + ΞΌΞΏΞ½Ξ¬Ξ΄Ξ±, ΞΊΞµΞ½Ο„ΟΞ±ΟΞΉΟƒΞΌΞ­Ξ½Ξ± ---
     QHBoxLayout* inputRow = new QHBoxLayout();
     inputRow->setSpacing(10);
     inputRow->addStretch();
@@ -620,7 +620,7 @@ void BackendHandler::createSliderWindow() {
     inputRow->addStretch();
     layout->addLayout(inputRow);
 
-    // --- Συνδέσεις (αμετάβλητες) ---
+    // --- Ξ£Ο…Ξ½Ξ΄Ξ­ΟƒΞµΞΉΟ‚ (Ξ±ΞΌΞµΟ„Ξ¬Ξ²Ξ»Ξ·Ο„ΞµΟ‚) ---
     QObject::connect(slider, &QSlider::valueChanged, this, &BackendHandler::updateSliderValue);
     QObject::connect(slider, &QSlider::valueChanged, value_type_input_field, [value_type_input_field](int val) {
         value_type_input_field->setText(QString::number(val));
@@ -640,7 +640,7 @@ void BackendHandler::createSliderWindow() {
 
     value_type_input_field->setText(QString::number(slider->value()));
 
-    // Ενημερώνουμε ΜΟΝΟ το κείμενο στην οθόνη κατά το άνοιγμα, ΔΕΝ στέλνουμε MQTT εντολή!
+    // Ξ•Ξ½Ξ·ΞΌΞµΟΟΞ½ΞΏΟ…ΞΌΞµ ΞΞΞΞ Ο„ΞΏ ΞΊΞµΞ―ΞΌΞµΞ½ΞΏ ΟƒΟ„Ξ·Ξ½ ΞΏΞΈΟΞ½Ξ· ΞΊΞ±Ο„Ξ¬ Ο„ΞΏ Ξ¬Ξ½ΞΏΞΉΞ³ΞΌΞ±, Ξ”Ξ•Ξ ΟƒΟ„Ξ­Ξ»Ξ½ΞΏΟ…ΞΌΞµ MQTT ΞµΞ½Ο„ΞΏΞ»Ξ®!
     if (isManual) {
         double pct = qMax(0.0, getThrottlePercentage(slider->value()));
         slider_value_label->setText(QString::number(pct, 'f', 2) + " %");
@@ -752,7 +752,7 @@ void BackendHandler::execute_experiment() {
         upper_rpm_bound = target_rpm + cfg.rpm_clemency;
 
         if (active_controller) {
-            active_controller->set_new_bounds(lower_rpm_bound, upper_rpm_bound); // εδω τα bounds μου φτιαχνονται με τα rpm
+            active_controller->set_new_bounds(lower_rpm_bound, upper_rpm_bound); // ΞµΞ΄Ο‰ Ο„Ξ± bounds ΞΌΞΏΟ… Ο†Ο„ΞΉΞ±Ο‡Ξ½ΞΏΞ½Ο„Ξ±ΞΉ ΞΌΞµ Ο„Ξ± rpm
         }
 
         experiment_stage = AdjustThrottle;
@@ -764,7 +764,7 @@ void BackendHandler::execute_experiment() {
             break;
         }
 
-        if (active_controller) new_throttle = active_controller->update(target_rpm, tel.rpm, tel.throttle, dt_sec); // setpoint με RPM
+        if (active_controller) new_throttle = active_controller->update(target_rpm, tel.rpm, tel.throttle, dt_sec); // setpoint ΞΌΞµ RPM
 
         desired_throttle = std::clamp(new_throttle, cfg.min_throttle, cfg.max_throttle);
         QString desired_throttle_payload = QString("%1:%2").arg("Throttle").arg(desired_throttle);

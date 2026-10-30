@@ -123,7 +123,6 @@ Qt6Mqtt.lib;%(AdditionalDependencies)</AdditionalDependencies>
   </ItemDefinitionGroup>
   <ItemGroup>
     <QtMoc Include="ThrustStandGUI.h" />
-    <ClCompile Include="Battery.cpp" />
     <ClCompile Include="Containers.cpp" />
     <ClCompile Include="GraphContainer.cpp" />
     <ClCompile Include="BackendHandler.cpp" />

@@ -195,4 +195,5 @@ inline const QString DIALOG_STYLE = QString::fromUtf8(R"(
     QMessageBox QPushButton { min-width: 90px; min-height: 36px; }
     )");
 
+
 #endif 

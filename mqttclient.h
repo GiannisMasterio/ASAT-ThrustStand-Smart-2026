@@ -1,4 +1,4 @@
-#ifndef MQTTCLIENT_H
+ο»Ώ#ifndef MQTTCLIENT_H
 #define MQTTCLIENT_H
 
 #include <QObject>
@@ -18,7 +18,7 @@ public:
     void disconnectFromBroker();
     QMqttClient::ClientState getState();
 
-    // ΠΡΟΣΘΗΚΕΣ για να επιτρέπεται ο καθαρισμός από την GUI
+    // Ξ Ξ΅ΞΞ£ΞΞ—ΞΞ•Ξ£ Ξ³ΞΉΞ± Ξ½Ξ± ΞµΟ€ΞΉΟ„ΟΞ­Ο€ΞµΟ„Ξ±ΞΉ ΞΏ ΞΊΞ±ΞΈΞ±ΟΞΉΟƒΞΌΟΟ‚ Ξ±Ο€Ο Ο„Ξ·Ξ½ GUI
     void disconnectFromHost();
     void unsubscribe(const QMqttTopicFilter& filter);
 
