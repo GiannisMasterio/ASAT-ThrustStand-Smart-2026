@@ -5,7 +5,6 @@ class Controller {
 public:
     virtual ~Controller() = default;
 
-    // this line is gemini suggested so i will review it later
     virtual void reset() = 0;
 
     virtual int update(double setpoint, double current_measurement_value, int current_throttle, double dt) = 0;
