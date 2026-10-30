@@ -6,14 +6,9 @@ public:
     virtual ~Controller() = default;
 
     virtual void reset() = 0;
-
     virtual int update(double setpoint, double current_measurement_value, int current_throttle, double dt) = 0;
-
     virtual QVector<QPair<QString,double>> return_parameter_list() = 0;
-
     virtual void set_new_bounds(double lower_bound, double upper_bound) {}
-    virtual void set_initial_throttle(int initial_throttle){}
-
     virtual void set_new_parameters(const QVector<QPair<QString, double>>& new_params) = 0;
 };
 
@@ -113,10 +108,6 @@ class PidController : public Controller {
 
         this->i_max = clamping_authority * interval_range;
         this->i_min = -1 * this->i_max; 
-    }
-
-    void set_initial_throttle(int initial_throttle) override {
-        this->i_term = initial_throttle;
     }
 
     QVector<QPair<QString, double>> return_parameter_list() {
