@@ -289,7 +289,7 @@ class ADRCController : public Controller {
 private:
 
     // ADRC MEMORY
-    int last_output = 0; // Το προηγούμενο PWM (σε double για ακρίβεια στον παρατηρητή)
+    int last_output = 0;
 	double estimate1 = 0.0;     // Observer Estimate for Measurement
     double estimate2 = 0.0;     // Observer Estimate for Total Perturbation
     bool observer_initialized = false;
