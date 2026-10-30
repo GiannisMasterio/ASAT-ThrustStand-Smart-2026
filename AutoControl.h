@@ -126,7 +126,7 @@ class PidController : public Controller {
         parameter_list.push_back(qMakePair("Ki Value", this->Ki));
         parameter_list.push_back(qMakePair("Kd Value", this->Kd));
         parameter_list.push_back(qMakePair("Clamping Authority (For Clamping Anti-Windup)", this->clamping_authority));
-        parameter_list.push_back(qMakePair("AntiWindup Technique", this->current_aw_technique));
+        parameter_list.push_back(qMakePair("AntiWindup Technique", static_cast<double>(this->current_aw_technique)));
         return parameter_list;
     }
 
