@@ -717,6 +717,10 @@ void BackendHandler::initialize_stabilizing_thrust() {
 void BackendHandler::execute_experiment() {
     int new_throttle = 0;
 
+    int dt_ms = auto_mode_timer ? auto_mode_timer->interval() : 100;
+    if (dt_ms <= 0) dt_ms = 100;
+    double dt_sec = dt_ms / 1000.0;
+
     if (!experiment_running && !ending_transition) {
         experiment_stage = EmergencyStop;
         experiment_just_started = false;
@@ -748,7 +752,7 @@ void BackendHandler::execute_experiment() {
         upper_rpm_bound = target_rpm + cfg.rpm_clemency;
 
         if (active_controller) {
-            active_controller->set_new_bounds(lower_rpm_bound, upper_rpm_bound);
+            active_controller->set_new_bounds(lower_rpm_bound, upper_rpm_bound); // εδω τα bounds μου φτιαχνονται με τα rpm
         }
 
         experiment_stage = AdjustThrottle;
@@ -760,12 +764,7 @@ void BackendHandler::execute_experiment() {
             break;
         }
 
-        if (active_controller) {
-            double dt = auto_mode_timer ? (auto_mode_timer->interval() / 1000.0) : 0.1;
-            if (dt <= 0.0) dt = 0.1;
-
-            new_throttle = active_controller->update(target_rpm, tel.rpm, tel.throttle, dt);
-        }
+        if (active_controller) new_throttle = active_controller->update(target_rpm, tel.rpm, tel.throttle, dt_sec); // setpoint με RPM
 
         desired_throttle = std::clamp(new_throttle, cfg.min_throttle, cfg.max_throttle);
         QString desired_throttle_payload = QString("%1:%2").arg("Throttle").arg(desired_throttle);
@@ -781,9 +780,7 @@ void BackendHandler::execute_experiment() {
             thrustSampleBuffer.removeFirst();
         }
 
-        if (thrustSampleBuffer.size() < max_thrust_samples) {
-            break;
-        }
+        if (thrustSampleBuffer.size() < max_thrust_samples) break;
 
         double min_thrust = *std::min_element(thrustSampleBuffer.constBegin(), thrustSampleBuffer.constEnd());
         double max_thrust = *std::max_element(thrustSampleBuffer.constBegin(), thrustSampleBuffer.constEnd());
@@ -883,17 +880,13 @@ void BackendHandler::execute_experiment() {
             stabilizing_transition = true;
             transitionSampleBuffer.clear();
 
-            int dt_ms = auto_mode_timer ? auto_mode_timer->interval() : 100;
-            if (dt_ms <= 0) dt_ms = 100;
+            if (active_controller) active_controller->set_new_bounds(stabilize_target_threshold - clemency, stabilize_target_threshold + clemency);
 
             max_transition_samples = (int)(cfg.transition_stab_wait_time_ms / dt_ms);
         }
 
         if (active_controller) {
-            double dt = auto_mode_timer ? (auto_mode_timer->interval() / 1000.0) : 0.1;
-            if (dt <= 0.0) dt = 0.1;
-
-            new_throttle = active_controller->update(stabilize_target_threshold, current_stabilize_value, tel.throttle, dt);
+            new_throttle = active_controller->update(stabilize_target_threshold, current_stabilize_value, tel.throttle, dt_sec);
         }
 
         desired_throttle = std::clamp(new_throttle, cfg.min_throttle, cfg.max_throttle);
@@ -905,9 +898,7 @@ void BackendHandler::execute_experiment() {
             transitionSampleBuffer.removeFirst();
         }
 
-        if (transitionSampleBuffer.size() < max_transition_samples) {
-            break;
-        }
+        if (transitionSampleBuffer.size() < max_transition_samples) break;
 
         double min_value = *std::min_element(transitionSampleBuffer.constBegin(), transitionSampleBuffer.constEnd());
         double max_value = *std::max_element(transitionSampleBuffer.constBegin(), transitionSampleBuffer.constEnd());

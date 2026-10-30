@@ -1670,9 +1670,10 @@ void ThrustStandGUI::customizeExperiment() {
         grid->addWidget(cell, n / 3, n % 3);
         };
 
-    QVector<SettingsElements> fields = {
+    QVector<SettingsElements> experiment_fields = {
         // --- General Settings ---
         {"Propeller Name:", "", "", false, &cfg.propeller_name, SettingsElements::String},
+        {"Thrust Threshold:", "", "", false, &cfg.stabilize_target_threshold, SettingsElements::Double},
 
         // --- Aerodynamics / Environment ---
         {"Angle Of Attack (deg):", "", "", true, &cfg.angle_of_attack, SettingsElements::Double},
@@ -1704,7 +1705,7 @@ void ThrustStandGUI::customizeExperiment() {
     boundsRow->setSpacing(30);
     boundsRow->addStretch();
 
-    for (auto& field : fields) {
+    for (auto& field : experiment_fields) {
         if (field.labeltext == "First Experiment" || field.labeltext == "Last Experiment") {
             QCheckBox* checkBox = new QCheckBox(field.labeltext, settings_window);
             checkBox->setChecked(field.labeltext == "First Experiment" ? cfg.first_experiment : cfg.last_experiment);
@@ -1804,9 +1805,9 @@ void ThrustStandGUI::customizeExperiment() {
     confirmButton->setCursor(Qt::PointingHandCursor);
     layout->addWidget(confirmButton);
 
-    connect(confirmButton, &QPushButton::clicked, this, [this, &cfg, &cal, &tel, fields, settings_window]() mutable {
+    connect(confirmButton, &QPushButton::clicked, this, [this, &cfg, &cal, &tel, experiment_fields, settings_window]() mutable {
         auto findEntryByLabel = [&](const QString& label) -> QWidget* {
-            for (const auto& field : fields) {
+            for (const auto& field : experiment_fields) {
                 if (field.labeltext == label) return field.entry;
             }
             return nullptr;
