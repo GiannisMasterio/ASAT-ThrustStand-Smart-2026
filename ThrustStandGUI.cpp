@@ -807,9 +807,6 @@ void ThrustStandGUI::updateBottomToolbar() {
 }
 
 void ThrustStandGUI::updateArmedState(bool new_arm_status) {
-    if (backend_handler->is_armed == new_arm_status) {
-        return;
-    }
 
     backend_handler->is_armed = new_arm_status;
 
@@ -826,8 +823,6 @@ void ThrustStandGUI::updateArmedState(bool new_arm_status) {
         backend_handler->playAudio(100, "Disarmed");
     }
 }
-
-
 
 void ThrustStandGUI::changeScene() {
     if (lastSceneChange.isValid() && lastSceneChange.elapsed() < 100) {

@@ -6,7 +6,6 @@
 #include <QColor>
 #include <QFont>
 #include <functional>
-#include "gauge.h"
 #include <QVBoxLayout>
 
 class ValueGraphic : public QWidget {

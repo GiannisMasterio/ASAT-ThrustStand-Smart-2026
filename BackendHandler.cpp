@@ -110,9 +110,7 @@ double BackendHandler::calibrate_thrust(double esp_newton) {
 }
 
 void BackendHandler::playAudio(int volume, QString audio_tag) {
-    if (audio_handler) {
-        audio_handler->playSound(volume, audio_tag);
-    }
+    if (audio_handler) audio_handler->playSound(volume, audio_tag);
 }
 
 void BackendHandler::receiveTelemetry(const QString& data, QString source) {
@@ -173,10 +171,10 @@ void BackendHandler::receiveTelemetry(const QString& data, QString source) {
 
     if (tel.voltage == 0) {
         write_logs = false;
-        if (is_armed) emit armedStateChanged(false);
+        if (is_armed) emit armedStateChanged(false); // disarm
     }
     else {
-        if (!is_armed) emit armedStateChanged(is_armed); // an den einai armed kanto gia tash!=0
+        if (!is_armed) emit armedStateChanged(true); // an den einai armed kanto gia tash!=0
     }
 
     if (write_logs != previous_write_status) {
@@ -185,58 +183,6 @@ void BackendHandler::receiveTelemetry(const QString& data, QString source) {
 
     logToFile(true);
 }
-
-/*void BackendHandler::logToFile(bool status) {
-
-    if (!status || !write_logs) return;
-
-    int label_width = 30;
-
-    QFile file(log_file_path);
-    bool file_exists = file.exists();
-
-    if (!file.open(QIODevice::Append | QIODevice::Text)) {
-        qWarning() << "Error opening log file for appending:" << file.errorString();
-        return;
-    }
-
-    QTextStream out(&file);
-
-    if (!file_exists || file.size() == 0) {
-        out << QString("%1 %2 %3 %4 %5 %6 %7 %8 %9 %10 %11\n")
-            .arg("Timestamp", label_width)
-            .arg("Thrust (N)", label_width)
-            .arg("Torque (N*m)", label_width)
-            .arg("Voltage (V)", label_width)
-            .arg("Current (A)", label_width)
-            .arg("RPM", label_width)
-            .arg("Throttle (%)", label_width)
-            .arg("Power (W)", label_width)
-            .arg("Propeller Name", label_width)
-            .arg("Angle of Attack (degrees)", label_width)
-            .arg("Airspeed (m/sec)", label_width);
-    }
-
-    QString timestamp = QDateTime::currentDateTime().toString("HH:mm:ss");
-    double throttle_percentage = getThrottlePercentage(tel.throttle);
-
-    out << QString("%1 %2 %3 %4 %5 %6 %7 %8 %9 %10 %11\n")
-        .arg(timestamp, label_width)
-        .arg(tel.thrust, label_width, 'f', 2)
-        .arg(tel.torque, label_width, 'f', 2)
-        .arg(tel.voltage, label_width, 'f', 2)
-        .arg(tel.current, label_width, 'f', 2)
-        .arg(tel.rpm, label_width, 'f', 0)
-        .arg(throttle_percentage, label_width, 'f', 2)
-        .arg(tel.power, label_width, 'f', 2)
-        .arg(cfg.propeller_name, label_width)
-        .arg(cfg.angle_of_attack, label_width, 'f', 2)
-        .arg(cfg.airspeed, label_width, 'f', 2);
-
-    file.close();
-}
-
-*/
 
 void BackendHandler::initLogFile() {
     QString fullPath = log_file_path;
@@ -352,6 +298,12 @@ bool BackendHandler::connectSerial(const QString& portName, int baudrate) {
     return isSerialConnected();
 }
 
+void BackendHandler::confirmPort() {
+    qDebug() << "Selected COM port:" << serial_com_port_tag;
+    qDebug() << "Selected baudrate:" << serial_baudrate;
+    handleSerial(running);
+}
+
 bool BackendHandler::isSerialConnected() const {
     return (serial_port && serial_port->isOpen());
 }
@@ -381,12 +333,6 @@ void BackendHandler::serial_sendCommand(QString command) {
     serial_port->flush();
 
     qDebug() << "TX:" << data << "bytes:" << bytes;
-}
-
-void BackendHandler::confirmPort() {
-    qDebug() << "Selected COM port:" << serial_com_port_tag;
-    qDebug() << "Selected baudrate:" << serial_baudrate;
-    handleSerial(running);
 }
 
 void BackendHandler::chooseLogLocation() {
@@ -803,7 +749,6 @@ void BackendHandler::execute_experiment() {
 
         if (active_controller) {
             active_controller->set_new_bounds(lower_rpm_bound, upper_rpm_bound);
-            active_controller->set_initial_throttle(tel.throttle);
         }
 
         experiment_stage = AdjustThrottle;
@@ -819,7 +764,7 @@ void BackendHandler::execute_experiment() {
             double dt = auto_mode_timer ? (auto_mode_timer->interval() / 1000.0) : 0.1;
             if (dt <= 0.0) dt = 0.1;
 
-            new_throttle = active_controller->update(target_rpm, tel.rpm, dt);
+            new_throttle = active_controller->update(target_rpm, tel.rpm, tel.throttle, dt);
         }
 
         desired_throttle = std::clamp(new_throttle, cfg.min_throttle, cfg.max_throttle);
@@ -948,7 +893,7 @@ void BackendHandler::execute_experiment() {
             double dt = auto_mode_timer ? (auto_mode_timer->interval() / 1000.0) : 0.1;
             if (dt <= 0.0) dt = 0.1;
 
-            new_throttle = active_controller->update(stabilize_target_threshold, current_stabilize_value, dt);
+            new_throttle = active_controller->update(stabilize_target_threshold, current_stabilize_value, tel.throttle, dt);
         }
 
         desired_throttle = std::clamp(new_throttle, cfg.min_throttle, cfg.max_throttle);

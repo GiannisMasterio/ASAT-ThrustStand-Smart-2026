@@ -134,7 +134,7 @@ Qt6Mqtt.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </ClCompile>
     <ClCompile Include="QCustomPlot.cpp" />
     <ClCompile Include="ThrustStandGUI.cpp" />
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="Main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="BackendHandler.h" />

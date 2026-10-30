@@ -8,7 +8,7 @@ public:
     // this line is gemini suggested so i will review it later
     virtual void reset() = 0;
 
-    virtual double update(int setpoint, double current_measurement_value, double dt) = 0;
+    virtual int update(double setpoint, double current_measurement_value, int current_throttle, double dt) = 0;
 
     virtual QVector<QPair<QString,double>> return_parameter_list() = 0;
 
@@ -25,23 +25,22 @@ class StepController : public Controller {
  StepController(double lower_target_bound, double upper_target_bound, int throttle_increase_step) {
      this->lower_target_bound = lower_target_bound;
      this->upper_target_bound = upper_target_bound;
-     this->current_output_throttle = 0.0; 
      this->throttle_increase_step = throttle_increase_step;
  }
 
  void reset() override {}
 
- double update(int setpoint, double current_measurement_value, double dt) override {
+ int update(double setpoint, double current_measurement_value, int current_throttle, double dt) override {
     
      if (current_measurement_value < lower_target_bound) {
-         current_output_throttle += throttle_increase_step;
+         current_throttle += throttle_increase_step;
      }
 
      else if (current_measurement_value > upper_target_bound) {
-         current_output_throttle -= throttle_increase_step;
+         current_throttle -= throttle_increase_step;
      }
 
-     return current_output_throttle;
+     return current_throttle;
  }
 
  QVector<QPair<QString, double>> return_parameter_list() {
@@ -56,10 +55,6 @@ class StepController : public Controller {
      this->upper_target_bound = upper_target_bound;
  }
 
- void set_initial_throttle(int initial_throttle) {
-     this->current_output_throttle = initial_throttle;
- }
-
  void set_new_parameters(const QVector<QPair<QString, double>>& new_params) override {
      this->throttle_increase_step = (int)new_params[0].second;
  }
@@ -68,7 +63,6 @@ class StepController : public Controller {
     int throttle_increase_step;
     double lower_target_bound;
     double upper_target_bound;
-    int current_output_throttle;
 };
 
 class PidController : public Controller {
@@ -90,10 +84,17 @@ class PidController : public Controller {
     void reset() override {
         this->i_term = 0;
         this->prev_error = 0;
+        is_initialized = false;
     }
 
-    double update(int setpoint, double current_measurement_value, double dt) override { // kanw override to virtual method ths base class
+    int update(double setpoint, double current_measurement_value, int current_throttle, double dt) override { // kanw override to virtual method ths base class
         if (dt <= 0) return 0.0;
+
+        if (!is_initialized) {
+            this->i_term = current_throttle; // αυτοματη συσσωρευση στον ολοκληρωτικο ορο
+            this->prev_error = setpoint - current_measurement_value;
+			is_initialized = true;
+        }
 
         double error = (double)setpoint - current_measurement_value;
         double p_term = error * this->Kp;
@@ -101,7 +102,7 @@ class PidController : public Controller {
 
         i_term = anti_windup_filter(i_term, dt, error, p_term + i_term + d_term);
   
-        double new_output = p_term + i_term + d_term;
+        int new_output = p_term + i_term + d_term;
         
         this->prev_error = error;
 
@@ -126,6 +127,7 @@ class PidController : public Controller {
         parameter_list.push_back(qMakePair("Ki Value", this->Ki));
         parameter_list.push_back(qMakePair("Kd Value", this->Kd));
         parameter_list.push_back(qMakePair("Clamping Authority (For Clamping Anti-Windup)", this->clamping_authority));
+        parameter_list.push_back(qMakePair("AntiWindup Technique", this->current_aw_technique));
         return parameter_list;
     }
 
@@ -188,6 +190,7 @@ class PidController : public Controller {
             else if (param.first == "Ki Value") this->Ki = param.second;
             else if (param.first == "Kd Value") this->Kd = param.second;
             else if (param.first == "Clamping Authority (For Clamping Anti-Windup)") this->clamping_authority = param.second;
+            else if (param.first == "AntiWindup Technique") this->current_aw_technique = static_cast<AntiWindupTechniques>((int)param.second);
         }
     }
 
@@ -205,6 +208,8 @@ class PidController : public Controller {
      double i_term = 0;
      double prev_error = 0;
      
+     bool is_initialized = false; // αυτο το βαζω για bumpless transfer
+
      enum AntiWindupTechniques { IntegralClamping, ConditionalIntegration, SimpleTaring};
      AntiWindupTechniques current_aw_technique = IntegralClamping;
 
@@ -214,63 +219,93 @@ class ADRCController : public Controller {
  public:
 
      ADRCController(double b0_val, double wc_val, double wo_val, double min_out, double max_out) {
+
          this->b0 = b0_val;
          this->wc = wc_val;
+         this->wo = wo_val;
+
          this->min_limit = min_out;
          this->max_limit = max_out;
 
-         // Υπολογισμός των κερδών του παρατηρητή (για ζ=1) μία φορά στην αρχή
-         this->beta1 = 2.0 * wo_val;
-         this->beta2 = wo_val * wo_val;
+         update_observer_gains();
      }
 
-     double update(int setpoint, double current_measurement_value, double dt) {
+     int update(double setpoint, double current_measurement_value, int current_throttle, double dt) {
+         if (dt <= 0.0 || std::abs(this->b0) < 1e-9) {
+             return this->last_output;
+         }
 
-         return (double)setpoint;
+         if (!is_initialized) {
+
+             estimate1 = current_measurement_value; // pairnw atofia th metrhsh arxika
+			 estimate2 = -this->b0 * (double)(this->last_output);// arxikopoiw to estimate2 sto 0
+             is_initialized = true;
+         }
+
+         double observer_error = estimate1 - current_measurement_value;
+         double d_est1 = estimate2 + this->b0 * this->last_output - (this->beta1 * observer_error);
+         double d_est2 = -(this->beta2 * observer_error);
+
+		 estimate1 = d_est1 * dt;
+		 estimate2 = d_est2 * dt;
+
+         double u0 = this->wc * (setpoint - estimate1);
+         double u = (u0 - estimate2) / this->b0; // Disturbance Rejection
+         
+         int new_output = std::clamp(qRound(u), this->min_limit, this->max_limit);
+	     this->last_output = new_output;
+         return new_output;
+     }
+
+     void update_observer_gains() {
+         this->beta1 = 2.0 * this->wo;
+         this->beta2 = this->wo * this->wo;
      }
 
      void reset() override {
-         last_u = 0.0;
-         z1 = 0.0; // Μηδενίζουμε και τη μνήμη του παρατηρητή
-         z2 = 0.0;
-     }
-
-     // Το Bumpless Transfer
-     void set_initial_throttle(int initial_throttle) override {
-         this->last_u = initial_throttle;
+         last_output = 0;
+         estimate1 = 0.0; 
+         estimate2 = 0.0;
+         is_initialized = false;
      }
 
      void set_new_parameters(const QVector<QPair<QString, double>>& new_params) override {
          for (const auto& param : new_params) {
-             if (param.first == "Bo Value") this->b0 = param.second;
-             else if (param.first == "Wc Value") this->wc = param.second;
-             else if (param.first == "Beta1 Value") this->beta1 = param.second;
-             else if (param.first == "Beta2 Value") this->beta2 = param.second;
+             if (param.first == "b0 (System Gain)") this->b0 = param.second;
+             else if (param.first == "Wc (Controller Bandwidth)") this->wc = param.second;
+             else if (param.first == "Wo (Observer Bandwidth)") this->wo = param.second;
          }
      }
 
      QVector<QPair<QString, double>> return_parameter_list() {
          QVector<QPair<QString, double>> parameter_list;
 
-         parameter_list.push_back(qMakePair("Bo Value", this->b0));
-         parameter_list.push_back(qMakePair("Wc Value", this->wc));
-         parameter_list.push_back(qMakePair("Beta1 Value", this->beta1));
-         parameter_list.push_back(qMakePair("Beta2 Value", this->beta2));
+         parameter_list.push_back(qMakePair("b0 (System Gain)", this->b0));
+         parameter_list.push_back(qMakePair("Wc (Controller Bandwidth)", this->wc));
+         parameter_list.push_back(qMakePair("Wo (Observer Bandwidth)", this->wo));
+
          return parameter_list;
      }
 
 private:
-    // Η μνήμη του ADRC
-    int last_u = 0; // Το προηγούμενο PWM
-    double z1 = 0.0;     // Η εκτίμηση του Παρατηρητή για τις RPM
-    double z2 = 0.0;     // Η εκτίμηση του Παρατηρητή για τη Διαταραχή
 
-    // Σταθερές συστήματος - Αυτές θα γίνουν tune
-    double b0;
-    double wc;
-    double beta1;
-    double beta2;
+    // ADRC MEMORY
+    int last_output = 0; // Το προηγούμενο PWM (σε double για ακρίβεια στον παρατηρητή)
+	double estimate1 = 0.0;     // Observer Estimate for Measurement
+    double estimate2 = 0.0;     // Observer Estimate for Total Perturbation
+    bool observer_initialized = false;
 
-    int min_limit;
-    int max_limit;
+    // System Constants -> We tune these
+    double b0 = 10.0;
+    double wc = 5.0;
+    double wo = 20.0;
+
+    // Inner Observer Gains -> Αυτα θα γινουνε update με βαση τα constants
+    double beta1 = 40.0;
+    double beta2 = 400.0;
+
+    int min_limit = MIN_THROTTLE;
+    int max_limit = MAX_THROTTLE;
+
+    bool is_initialized = false; // αυτο το βαζω για bumpless transfer
 };
