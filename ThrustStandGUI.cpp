@@ -3,6 +3,7 @@
 #include "backendhandler.h"
 #include "constants.h"
 #include <functional>
+#include <QDebug>
 
 ThrustStandGUI::ThrustStandGUI(QWidget* parent) : QMainWindow(parent)
 {

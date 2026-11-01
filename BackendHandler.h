@@ -131,6 +131,7 @@ public:
     std::mt19937 rng{ std::random_device{}() };
 
     bool use_max_rpm_logic = false;
+	bool manual_transition_approved = false; // this variable controls when the windtunnel transition is considered stable enough to proceed to the next stage, users sets this
 
 protected:
 
@@ -194,6 +195,8 @@ private:
     double calibrate_current(double value);
     double calibrate_thrust(double value);
     double RPMFilter(double new_rpm);
+
+    void BackendHandler::publishThrottle(int new_throttle)
 
     void createSliderWindow();
     void initialize_stabilizing_thrust();
