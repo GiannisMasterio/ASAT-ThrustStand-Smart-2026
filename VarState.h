@@ -48,6 +48,8 @@ struct ExperimentConfig {
     bool experiment_is_static = false;
     bool log_only_during_experiment = true;
     bool windtunnel_transitioning = false;
+    bool use_max_rpm_logic = false;
+    bool manual_transition_approved = false; // this variable controls when the windtunnel transition is considered stable enough to proceed to the next stage, users sets this
 };
 
 struct CalibrationConfig {

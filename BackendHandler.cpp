@@ -718,6 +718,210 @@ void BackendHandler::publishThrottle(int new_throttle) {
 
 }
 
+void BackendHandler::execute_experiment() {
+    int new_throttle = 0;
+
+    int dt_ms = auto_mode_timer ? auto_mode_timer->interval() : 100;
+    if (dt_ms <= 0) dt_ms = 100;
+    double dt_sec = dt_ms / 1000.0;
+
+    if (!experiment_running && !ending_transition) {
+        experiment_stage = EmergencyStop;
+        experiment_just_started = false;
+        playAudio(100, "ExperimentCancelled");
+    }
+    else if ((tel.current >= cfg.current_limit) && !ending_transition) {
+        experiment_stage = EmergencyStop;
+        experiment_just_started = false;
+        playAudio(100, "CurrentLimitReached");
+    }
+    else if (tel.throttle == cfg.max_throttle && !ending_transition) {
+        experiment_stage = EmergencyStop;
+        experiment_just_started = false;
+    }
+    else if (experiment_just_started) {
+        playAudio(100, "ExperimentBeginning");
+        experiment_just_started = false;
+        experiment_stage = IncrementRPMTarget;
+        if (!cfg.first_experiment) experiment_stage = WindTunnelTransitionStage;
+    }
+
+    switch (experiment_stage) {
+
+    case IncrementRPMTarget: {
+        if (cfg.use_max_rpm_logic) target_rpm = min(cfg.rpm_step + (int)target_rpm, (int)cfg.max_rpm);
+        else target_rpm += cfg.rpm_step;
+
+        lower_rpm_bound = target_rpm - cfg.rpm_clemency;
+        upper_rpm_bound = target_rpm + cfg.rpm_clemency;
+
+        if (active_controller) {
+            active_controller->set_new_bounds(lower_rpm_bound, upper_rpm_bound); // εδω τα bounds μου φτιαχνονται με τα rpm
+        }
+
+        experiment_stage = AdjustThrottle;
+        break;
+    }
+
+    case AdjustThrottle: {
+        if ((tel.rpm >= lower_rpm_bound && tel.rpm <= upper_rpm_bound) || (tel.throttle == cfg.max_throttle)) {
+            experiment_stage = StabilizeThrust;
+            break;
+        }
+
+        if (active_controller) new_throttle = active_controller->update(target_rpm, tel.rpm, tel.throttle, dt_sec); // setpoint με RPM
+
+        publishThrottle(new_throttle);
+
+        break;
+    }
+
+    case StabilizeThrust: {
+        if (!stabilizing_thrust) initialize_stabilizing_thrust();
+
+        thrustSampleBuffer.append(tel.thrust);
+        if (thrustSampleBuffer.size() > max_thrust_samples) {
+            thrustSampleBuffer.removeFirst();
+        }
+
+        if (thrustSampleBuffer.size() < max_thrust_samples) break;
+
+        double min_thrust = *std::min_element(thrustSampleBuffer.constBegin(), thrustSampleBuffer.constEnd());
+        double max_thrust = *std::max_element(thrustSampleBuffer.constBegin(), thrustSampleBuffer.constEnd());
+        double peak_to_peak_difference = max_thrust - min_thrust;
+
+        if (peak_to_peak_difference <= cfg.thrust_clemency) {
+            qDebug() << "Thrust stabilized";
+            thrustSampleBuffer.clear();
+            experiment_stage = RecordData;
+        }
+        break;
+    }
+
+    case RecordData:
+        if (!target_rpm_reached) {
+            playAudio(100, "TargetRPMReached");
+            target_rpm_reached = true;
+        }
+
+        if (!record_data_wait_time_initialized) {
+            record_data_wait_time = QDateTime::currentDateTime();
+            record_data_wait_time_initialized = true;
+        }
+
+        if (record_data_wait_time.msecsTo(QDateTime::currentDateTime()) > cfg.record_data_wait_time_ms) {
+
+            if (target_rpm >= (cfg.max_rpm - cfg.rpm_clemency) || tel.throttle == cfg.max_throttle) {
+                qDebug() << "Experiment finished successfully.";
+                playAudio(100, "ExperimentFinished");
+                record_data_wait_time_initialized = false;
+                stabilizing_thrust = false;
+                target_rpm_reached = false;
+
+                if (cfg.experiment_is_static) {
+
+                    publishThrottle(cfg.min_throttle);
+
+                    if (auto_mode_timer) auto_mode_timer->stop();
+                    experiment_just_started = true;
+                    emit experimentFinished();
+                }
+                else {
+                    ending_transition = true;
+                    if (cfg.first_experiment) cfg.first_experiment = false;
+                    experiment_stage = WindTunnelTransitionStage;
+                }
+                break;
+            }
+
+            record_data_wait_time_initialized = false;
+            stabilizing_thrust = false;
+            target_rpm_reached = false;
+            experiment_stage = IncrementRPMTarget;
+        }
+        break;
+
+    case EmergencyStop: {
+        qDebug() << "Experiment was exited by user or current limit reached";
+
+        if (cfg.experiment_is_static) {
+            publishThrottle(cfg.min_throttle);
+
+            if (auto_mode_timer) auto_mode_timer->stop();
+            emit experimentFinished();
+
+            experiment_just_started = true;
+            record_data_wait_time_initialized = false;
+            stabilizing_thrust = false;
+            target_rpm_reached = false;
+            experiment_stage = IncrementRPMTarget;
+            break;
+        }
+
+        if (cfg.first_experiment) cfg.first_experiment = false;
+
+        record_data_wait_time_initialized = false;
+        target_rpm_reached = false;
+        stabilizing_thrust = false;
+
+        ending_transition = true;
+        experiment_stage = WindTunnelTransitionStage;
+        break;
+    }
+
+    case WindTunnelTransitionStage: {
+		double current_stabilize_value = tel.thrust; // σταθεροποιούμενη τιμή για το transition, μπορεί να είναι thrust ή rpm ανάλογα με την περίπτωση
+		double stabilize_target_threshold = cfg.stabilize_target_threshold; // κατώφλι στόχος για το transition, μπορεί να είναι thrust ή rpm ανάλογα με την περίπτωση
+		double clemency = cfg.thrust_clemency; // ανοχή για το transition, μπορεί να είναι thrust ή rpm ανάλογα με την περίπτωση
+
+		experiment_is_transitioning = true; // σηματοδοτεί ότι το πείραμα βρίσκεται σε φάση transition
+
+        if (!stabilizing_transition) {
+            qDebug() << "Starting transition stabilization...";
+            stabilizing_transition = true;
+            
+			if (active_controller) active_controller->set_new_bounds(stabilize_target_threshold - clemency, stabilize_target_threshold + clemency); //  ρυθμίζει τα νέα όρια για τον controller με βάση το στόχο και την ανοχή
+			cfg.manual_transition_approved = false; // this variable controls when the windtunnel transition is considered stable enough to proceed to the next stage, users sets this
+        }
+
+        if (active_controller) {
+            new_throttle = active_controller->update(stabilize_target_threshold, current_stabilize_value, tel.throttle, dt_sec);
+        }
+
+        publishThrottle(new_throttle);
+
+        if (cfg.manual_transition_approved) {
+            cfg.windtunnel_transitioning = false;
+            stabilizing_transition = false;
+            cfg.manual_transition_approved = false; // Reset 
+
+            if (ending_transition) {
+                qDebug() << "Ending calibration manually approved. Ready for next airspeed.";
+                ending_transition = false;
+                experiment_just_started = true;
+                if (auto_mode_timer) auto_mode_timer->stop();
+                emit experimentFinished();
+            }
+            else {
+                qDebug() << "Initial transition manually approved. Starting experiment steps.";
+                experiment_stage = IncrementRPMTarget;
+            }
+        }
+        
+    
+        break;
+    }
+    }
+}
+
+void BackendHandler::resetExperiment() {
+    experiment_stage = IncrementRPMTarget;
+    target_rpm = 0.0;
+    record_data_wait_time_initialized = false;
+    thrustSampleBuffer.clear();
+    experiment_is_transitioning = false;
+}
+
 /*
 void BackendHandler::execute_experiment() {
     int new_throttle = 0;
@@ -931,207 +1135,3 @@ void BackendHandler::execute_experiment() {
     }
     }
 } */
-
-void BackendHandler::execute_experiment() {
-    int new_throttle = 0;
-
-    int dt_ms = auto_mode_timer ? auto_mode_timer->interval() : 100;
-    if (dt_ms <= 0) dt_ms = 100;
-    double dt_sec = dt_ms / 1000.0;
-
-    if (!experiment_running && !ending_transition) {
-        experiment_stage = EmergencyStop;
-        experiment_just_started = false;
-        playAudio(100, "ExperimentCancelled");
-    }
-    else if ((tel.current >= cfg.current_limit) && !ending_transition) {
-        experiment_stage = EmergencyStop;
-        experiment_just_started = false;
-        playAudio(100, "CurrentLimitReached");
-    }
-    else if (tel.throttle == cfg.max_throttle && !ending_transition) {
-        experiment_stage = EmergencyStop;
-        experiment_just_started = false;
-    }
-    else if (experiment_just_started) {
-        playAudio(100, "ExperimentBeginning");
-        experiment_just_started = false;
-        experiment_stage = IncrementRPMTarget;
-        if (!cfg.first_experiment) experiment_stage = WindTunnelTransitionStage;
-    }
-
-    switch (experiment_stage) {
-
-    case IncrementRPMTarget: {
-        if (use_max_rpm_logic) target_rpm = min(cfg.rpm_step + (int)target_rpm, (int)cfg.max_rpm);
-        else target_rpm += cfg.rpm_step;
-
-        lower_rpm_bound = target_rpm - cfg.rpm_clemency;
-        upper_rpm_bound = target_rpm + cfg.rpm_clemency;
-
-        if (active_controller) {
-            active_controller->set_new_bounds(lower_rpm_bound, upper_rpm_bound); // εδω τα bounds μου φτιαχνονται με τα rpm
-        }
-
-        experiment_stage = AdjustThrottle;
-        break;
-    }
-
-    case AdjustThrottle: {
-        if ((tel.rpm >= lower_rpm_bound && tel.rpm <= upper_rpm_bound) || (tel.throttle == cfg.max_throttle)) {
-            experiment_stage = StabilizeThrust;
-            break;
-        }
-
-        if (active_controller) new_throttle = active_controller->update(target_rpm, tel.rpm, tel.throttle, dt_sec); // setpoint με RPM
-
-        publishThrottle(new_throttle);
-
-        break;
-    }
-
-    case StabilizeThrust: {
-        if (!stabilizing_thrust) initialize_stabilizing_thrust();
-
-        thrustSampleBuffer.append(tel.thrust);
-        if (thrustSampleBuffer.size() > max_thrust_samples) {
-            thrustSampleBuffer.removeFirst();
-        }
-
-        if (thrustSampleBuffer.size() < max_thrust_samples) break;
-
-        double min_thrust = *std::min_element(thrustSampleBuffer.constBegin(), thrustSampleBuffer.constEnd());
-        double max_thrust = *std::max_element(thrustSampleBuffer.constBegin(), thrustSampleBuffer.constEnd());
-        double peak_to_peak_difference = max_thrust - min_thrust;
-
-        if (peak_to_peak_difference <= cfg.thrust_clemency) {
-            qDebug() << "Thrust stabilized";
-            thrustSampleBuffer.clear();
-            experiment_stage = RecordData;
-        }
-        break;
-    }
-
-    case RecordData:
-        if (!target_rpm_reached) {
-            playAudio(100, "TargetRPMReached");
-            target_rpm_reached = true;
-        }
-
-        if (!record_data_wait_time_initialized) {
-            record_data_wait_time = QDateTime::currentDateTime();
-            record_data_wait_time_initialized = true;
-        }
-
-        if (record_data_wait_time.msecsTo(QDateTime::currentDateTime()) > cfg.record_data_wait_time_ms) {
-
-            if (target_rpm >= (cfg.max_rpm - cfg.rpm_clemency) || tel.throttle == cfg.max_throttle) {
-                qDebug() << "Experiment finished successfully.";
-                playAudio(100, "ExperimentFinished");
-                record_data_wait_time_initialized = false;
-                stabilizing_thrust = false;
-                target_rpm_reached = false;
-
-                if (cfg.experiment_is_static) {
-
-                    publishThrottle(cfg.min_throttle);
-
-                    if (auto_mode_timer) auto_mode_timer->stop();
-                    experiment_just_started = true;
-                    emit experimentFinished();
-                }
-                else {
-                    ending_transition = true;
-                    if (cfg.first_experiment) cfg.first_experiment = false;
-                    experiment_stage = WindTunnelTransitionStage;
-                }
-                break;
-            }
-
-            record_data_wait_time_initialized = false;
-            stabilizing_thrust = false;
-            target_rpm_reached = false;
-            experiment_stage = IncrementRPMTarget;
-        }
-        break;
-
-    case EmergencyStop: {
-        qDebug() << "Experiment was exited by user or current limit reached";
-
-        if (cfg.experiment_is_static) {
-            publishThrottle(cfg.min_throttle);
-
-            if (auto_mode_timer) auto_mode_timer->stop();
-            emit experimentFinished();
-
-            experiment_just_started = true;
-            record_data_wait_time_initialized = false;
-            stabilizing_thrust = false;
-            target_rpm_reached = false;
-            experiment_stage = IncrementRPMTarget;
-            break;
-        }
-
-        if (cfg.first_experiment) cfg.first_experiment = false;
-
-        record_data_wait_time_initialized = false;
-        target_rpm_reached = false;
-        stabilizing_thrust = false;
-
-        ending_transition = true;
-        experiment_stage = WindTunnelTransitionStage;
-        break;
-    }
-
-    case WindTunnelTransitionStage: {
-		double current_stabilize_value = tel.thrust; // σταθεροποιούμενη τιμή για το transition, μπορεί να είναι thrust ή rpm ανάλογα με την περίπτωση
-		double stabilize_target_threshold = cfg.stabilize_target_threshold; // κατώφλι στόχος για το transition, μπορεί να είναι thrust ή rpm ανάλογα με την περίπτωση
-		double clemency = cfg.thrust_clemency; // ανοχή για το transition, μπορεί να είναι thrust ή rpm ανάλογα με την περίπτωση
-
-		experiment_is_transitioning = true; // σηματοδοτεί ότι το πείραμα βρίσκεται σε φάση transition
-
-        if (!stabilizing_transition) {
-            qDebug() << "Starting transition stabilization...";
-            stabilizing_transition = true;
-            
-			if (active_controller) active_controller->set_new_bounds(stabilize_target_threshold - clemency, stabilize_target_threshold + clemency); //  ρυθμίζει τα νέα όρια για τον controller με βάση το στόχο και την ανοχή
-			manual_transition_approved = false; // this variable controls when the windtunnel transition is considered stable enough to proceed to the next stage, users sets this
-        }
-
-        if (active_controller) {
-            new_throttle = active_controller->update(stabilize_target_threshold, current_stabilize_value, tel.throttle, dt_sec);
-        }
-
-        publishThrottle(new_throttle);
-
-        if (manual_transition_approved) {
-            cfg.windtunnel_transitioning = false;
-            stabilizing_transition = false;
-            manual_transition_approved = false; // Reset 
-
-            if (ending_transition) {
-                qDebug() << "Ending calibration manually approved. Ready for next airspeed.";
-                ending_transition = false;
-                experiment_just_started = true;
-                if (auto_mode_timer) auto_mode_timer->stop();
-                emit experimentFinished();
-            }
-            else {
-                qDebug() << "Initial transition manually approved. Starting experiment steps.";
-                experiment_stage = IncrementRPMTarget;
-            }
-        }
-        
-    
-        break;
-    }
-    }
-}
-
-void BackendHandler::resetExperiment() {
-    experiment_stage = IncrementRPMTarget;
-    target_rpm = 0.0;
-    record_data_wait_time_initialized = false;
-    thrustSampleBuffer.clear();
-    experiment_is_transitioning = false;
-}
