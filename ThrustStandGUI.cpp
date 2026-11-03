@@ -13,7 +13,7 @@ ThrustStandGUI::ThrustStandGUI(QWidget* parent) : QMainWindow(parent)
 
     setWindowTitle(WINDOW_NAME);
     resize(RES_WIDTH, RES_HEIGHT);
-    this->setWindowIcon(QIcon(ICONPATH));
+    setWindowIcon(QIcon(ICONPATH));
 
     graphic_timer = new QTimer(this);
 
@@ -68,7 +68,6 @@ void ThrustStandGUI::closeEvent(QCloseEvent* event) {
 }
 
 void ThrustStandGUI::on_closing() {
-    if (!backend_handler) return;
     backend_handler->running = false;
     backend_handler->logToFile(false);
     backend_handler->handleSerial(false);
@@ -1197,6 +1196,55 @@ void ThrustStandGUI::serial_control() {
     selection_window->show();
 }
 
+void ThrustStandGUI::create_approve_window() {
+
+    QWidget* approve_window = new QWidget(nullptr, Qt::Window);
+    approve_window->setObjectName("ModernDialog");
+    approve_window->setWindowTitle("Approve Transition");
+    approve_window->setMinimumSize(300,200);
+    approve_window->setWindowModality(Qt::ApplicationModal);
+    approve_window->setAttribute(Qt::WA_DeleteOnClose);
+    approve_window->setAttribute(Qt::WA_StyledBackground, true);
+    approve_window->setWindowIcon(QIcon(ICONPATH));
+    approve_window->setStyleSheet(DIALOG_STYLE);
+
+    QVBoxLayout* layout = new QVBoxLayout(approve_window);
+    layout->setContentsMargins(32, 28, 32, 28);
+    layout->setSpacing(12);
+
+    auto makeSectionLabel = [approve_window](const QString& text) {
+        QLabel* l = new QLabel(text, approve_window);
+        l->setObjectName("SectionLabel");
+        QFont f("Segoe UI", 10, QFont::DemiBold);
+        f.setLetterSpacing(QFont::AbsoluteSpacing, 2);
+        l->setFont(f);
+        return l;
+        };
+
+    QLabel* header = new QLabel("APPROVE TRANSITION WHEN WINDTUNNEL IS STABLE", approve_window);
+    header->setObjectName("DialogHeader");
+    QFont hf("Segoe UI", 15, QFont::DemiBold);
+    hf.setLetterSpacing(QFont::AbsoluteSpacing, 3);
+    header->setFont(hf);
+    header->setAlignment(Qt::AlignCenter);
+    layout->addWidget(header);
+    layout->addSpacing(10);
+
+    QPushButton* confirmButton = new QPushButton("Approve Transition", approve_window);
+    confirmButton->setObjectName("PrimaryButton");
+    confirmButton->setFixedHeight(46);
+    confirmButton->setCursor(Qt::PointingHandCursor);
+    layout->addWidget(confirmButton);
+
+    connect(confirmButton, &QPushButton::clicked, this, [confirmButton, approve_window, this]() {
+		backend_handler->cfg.manual_transition_approved = true;
+		backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
+        approve_window->close();
+    });
+
+    approve_window->show();
+}
+
 void ThrustStandGUI::setupSettingsFields() {
     
     auto& cfg = backend_handler->cfg;
@@ -1869,17 +1917,22 @@ void ThrustStandGUI::customizeExperiment() {
 }
 
 void ThrustStandGUI::start_experiment() {
+
     backend_handler->resetExperiment();
 
-    if (!backend_handler->auto_mode_timer) {
+    if (!backend_handler->auto_mode_timer) { // an den exei ginei allocate gia to timer kanto -- efoson den exei ginei den exoyme kanei experiment
+
         backend_handler->auto_mode_timer = new QTimer(this);
-        connect(backend_handler->auto_mode_timer, &QTimer::timeout, this, [this]() {
+        connect(backend_handler->auto_mode_timer, &QTimer::timeout, this, [this]() { // connecting timer with experiment execution 
             if (this->backend_handler) this->backend_handler->execute_experiment(); });  
+
+        connect(backend_handler, &BackendHandler::requestWindTunnelTransition, this, &ThrustStandGUI::create_approve_window);
     }
 
     if (!backend_handler->auto_mode_timer->isActive()) {
         backend_handler->auto_mode_timer->start(auto_mode_timer_interval_ms);
     }
+
 }
 
 void ThrustStandGUI::onExperimentFinished() {

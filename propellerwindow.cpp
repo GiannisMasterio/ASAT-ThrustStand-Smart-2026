@@ -17,10 +17,7 @@ void PropellerWindow::setupUI() {
 
     
 
-    // --- 2. Log Section ---
-    //m_logDisplay = new QTextEdit();
-    //m_logDisplay->setReadOnly(true);
-    //m_logDisplay->setPlaceholderText("Propeller logs will appear here...");
+   
 
     // --- 3. Buttons ---
     QPushButton* exportBtn = new QPushButton("Export to CSV");

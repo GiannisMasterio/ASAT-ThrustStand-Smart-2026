@@ -164,8 +164,6 @@ private:
     bool target_rpm_reached = false;
     bool ending_transition = false;
 
-    bool stabilizing_transition = false;
-
     double battery_removed_voltage_value = 204.8;
 
     int record_data_wait_time_ms = RECORD_DATA_WAIT_TIME_MS;
@@ -194,7 +192,7 @@ private:
     double RPMFilter(double new_rpm);
 
     void publishThrottle(int new_throttle);
-
+    void changeExperimentStage(int new_experiment_stage);
     void createSliderWindow();
     void initialize_stabilizing_thrust();
 
@@ -208,6 +206,7 @@ signals:
     
     void telemetryUpdated();
     void armedStateChanged(bool armed);
+	void requestWindTunnelTransition();
     void loggingStateChanged(bool logging);
 
 public slots:

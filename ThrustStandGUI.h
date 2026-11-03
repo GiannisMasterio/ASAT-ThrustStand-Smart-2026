@@ -57,13 +57,14 @@ public:
     explicit ThrustStandGUI(QWidget* parent = nullptr);
     ~ThrustStandGUI() override;
 
-    static QString getHoverStyle(const QString& baseColor);
-
     BackendHandler* backend_handler = nullptr;
 
 private slots:
+
     void on_closing();
     void graphicUpdates();
+
+    void create_approve_window();
 
     void escapeExperiment();
     void changeFunctionMode();
@@ -76,9 +77,9 @@ private slots:
     void onExperimentFinished();
 
 private:
-    QVector<double> timeHistory, thrustHistory, rpmHistory, voltageHistory,
-        currentHistory, powerHistory, throttleHistory;
 
+    QVector<double> timeHistory, thrustHistory, rpmHistory, voltageHistory, currentHistory, powerHistory, throttleHistory;
+       
     const int MAX_POINTS = 2000;
 
     QElapsedTimer lastSceneChange;
@@ -144,7 +145,6 @@ private:
     void createMainScene();
     void createGraphScene();
 
-    void windowCreate();
     void set_colors();
 
     void customizeExperiment();
