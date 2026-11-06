@@ -74,7 +74,7 @@ Qt6SerialPort.lib;Qt6Mqtt.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>C:\Qt\qtmqtt\build\lib;C:\Qt\qtmqtt\build\bin;C:\Qt\6.9.3\msvc2022_64\lib</AdditionalLibraryDirectories>
     </Link>
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Qt\6.9.3\msvc2022_64\include\QtSerialPort\6.9.3;C:\Qt\6.9.3\msvc2022_64\lib</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\Giannis Masterio YouTube\ThrustStand\Header</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS;QT_NO_DEPRECATED_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -91,6 +91,7 @@ Qt6Mqtt.lib;%(AdditionalDependencies)</AdditionalDependencies>
     <ClCompile>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <PreprocessorDefinitions>_UNICODE;UNICODE;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS;QT_NO_DEPRECATED_WARNINGS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\Giannis Masterio YouTube\ThrustStand\Header</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="Configuration">
@@ -122,46 +123,46 @@ Qt6Mqtt.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <QtMoc Include="ThrustStandGUI.h" />
-    <ClCompile Include="Containers.cpp" />
-    <ClCompile Include="GraphContainer.cpp" />
-    <ClCompile Include="BackendHandler.cpp" />
-    <ClCompile Include="MqttClient.cpp" />
-    <ClCompile Include="propellerwindow.cpp">
+    <QtMoc Include="Header\ThrustStandGUI.h" />
+    <ClCompile Include="src\Containers.cpp" />
+    <ClCompile Include="src\GraphContainer.cpp" />
+    <ClCompile Include="src\BackendHandler.cpp" />
+    <ClCompile Include="src\MqttClient.cpp" />
+    <ClCompile Include="src\propellerwindow.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="QCustomPlot.cpp" />
-    <ClCompile Include="ThrustStandGUI.cpp" />
-    <ClCompile Include="Main.cpp" />
+    <ClCompile Include="src\QCustomPlot.cpp" />
+    <ClCompile Include="src\ThrustStandGUI.cpp" />
+    <ClCompile Include="src\Main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <QtMoc Include="BackendHandler.h" />
+    <QtMoc Include="Header\BackendHandler.h" />
   </ItemGroup>
   <ItemGroup>
-    <QtMoc Include="MqttClient.h" />
+    <QtMoc Include="Header\MqttClient.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ContainerGraphics.h" />
-    <ClInclude Include="VarState.h" />
-    <QtMoc Include="AudioHandler.h">
+    <ClInclude Include="Header\ContainerGraphics.h" />
+    <ClInclude Include="Header\VarState.h" />
+    <QtMoc Include="Header\AudioHandler.h">
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(QtMsBuild)\qt_vars.target" "$(QtMsBuild)\qt_moc.target"</Command>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
     </QtMoc>
-    <ClInclude Include="AutoControl.h">
+    <ClInclude Include="Header\AutoControl.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClInclude>
-    <QtMoc Include="BatteryWidget.h" />
-    <ClInclude Include="Constants.h" />
-    <QtMoc Include="QCustomPlot.h" />
-    <QtMoc Include="GraphContainer.h" />
-    <ClCompile Include="propellerwindow.h">
+    <QtMoc Include="Header\BatteryWidget.h" />
+    <ClInclude Include="Header\Constants.h" />
+    <QtMoc Include="Header\QCustomPlot.h" />
+    <QtMoc Include="Header\GraphContainer.h" />
+    <ClCompile Include="Header\propellerwindow.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClInclude Include="resource.h" />
-    <QtMoc Include="Containers.h" />
+    <QtMoc Include="Header\Containers.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Condition="Exists('$(QtMsBuild)\qt.targets')">

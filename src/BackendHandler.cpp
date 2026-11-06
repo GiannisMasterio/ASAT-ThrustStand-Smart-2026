@@ -28,15 +28,20 @@ BackendHandler::BackendHandler(QObject* parent, QObject* defaultValue) :
 {
     serial_port = new QSerialPort(this);
     mqtt_data_timer = new QTimer(this);
-    
+    basic_auto_timer = new QTimer(this);
+
+   
     initLogFile();
 
     connect(this, &BackendHandler::mqttSendTopicChanged, this, &BackendHandler::updateMqttSendTopic);
     connect(this, &BackendHandler::publishMqtt, this, &BackendHandler::publishMqttMessage);
     connect(mqtt_data_timer, &QTimer::timeout, this, &BackendHandler::updateMqttData);
-
+    connect(basic_auto_timer, &QTimer::timeout, this, &BackendHandler::handleMode);
+        
     mqtt_data_timer->start(MQTT_DELAY);
     start_mqtt();
+
+    basic_auto_timer->setInterval(100);
 
     audio_handler = new AudioHandler(this);
 
@@ -371,6 +376,7 @@ void BackendHandler::openLogFile() {
     }
 }
 
+// MQTT FUNCTIONS
 void BackendHandler::start_mqtt() {
     if (mqttcfg.mqtt_client) {
         mqttcfg.mqtt_client->disconnectFromBroker();
@@ -441,12 +447,19 @@ void BackendHandler::onMqttMessageReceived(const QString& data) {
     qDebug() << "received (MQTT String Data):" << data;
 }
 
+void BackendHandler::updateMqttSendTopic(const QString& newTopic) {
+    mqttcfg.mqtt_send_topic = newTopic;
+    qDebug() << "ModeHandler MQTT Topic updated to:" << newTopic;
+}
+
 void BackendHandler::updateMqttData() {
     if (!mqttcfg.last_mqtt_data.isEmpty()) {
         receiveTelemetry(QString::fromUtf8(mqttcfg.last_mqtt_data), "MQTT");
         mqttcfg.last_mqtt_data.clear();
     }
 }
+
+// AUDIO FUNCTIONS
 
 bool BackendHandler::isSoundPlaying(QString audio) {
     return audio_handler ? audio_handler->isSoundPlaying(audio) : false;
@@ -456,25 +469,20 @@ void BackendHandler::setSoundStatus(bool sound_status) {
     if (audio_handler) audio_handler->setSoundStatus(sound_status);
 }
 
-double BackendHandler::getThrottlePercentage(int current_throttle) {
 
-    if (cfg.max_throttle <= cfg.min_throttle)
-        return 0.0;
 
-    return 100.0 * (current_throttle - cfg.min_throttle) / (cfg.max_throttle - cfg.min_throttle);
-}
-    
-void BackendHandler::updateMqttSendTopic(const QString& newTopic) {
-    mqttcfg.mqtt_send_topic = newTopic;
-    qDebug() << "ModeHandler MQTT Topic updated to:" << newTopic;
-}
-
+// BASIC MODE FUNCTIONS 
 void BackendHandler::manualToggleEvent(int state) {
     qDebug() << "Toggle State Changed" << state;
 
     if (state == Qt::Checked) {
         mode = "AUTO";
         qDebug() << "Mode changed to AUTO";
+
+        if (function_mode == "Basic" && !experiment_running) {
+            basic_auto_timer->start();
+        }
+
         if (slider_opener_button) {
             slider_opener_button->setText("Set RPM");
         }
@@ -482,6 +490,9 @@ void BackendHandler::manualToggleEvent(int state) {
     else if (state == Qt::Unchecked) {
         mode = "MANUAL";
         qDebug() << "Mode changed to MANUAL";
+
+        basic_auto_timer->stop();
+
         if (slider_opener_button) {
             slider_opener_button->setText("Set Throttle");
         }
@@ -491,10 +502,16 @@ void BackendHandler::manualToggleEvent(int state) {
 }
 
 void BackendHandler::handleMode() {
+
     if (mode == "AUTO") {
-        int new_throttle = -1.0;
+        int new_throttle = tel.throttle;
+
         double lower_bound = target_rpm - cfg.rpm_clemency;
         double upper_bound = target_rpm + cfg.rpm_clemency;
+
+        /*
+        active_controller->set_new_bounds(lower_bound, upper_bound);
+	    active_controller->update(tel.rpm, target_rpm, tel.throttle, dt); */
 
         if (tel.rpm < lower_bound) {
             new_throttle = tel.throttle + cfg.throttle_increase_step;
@@ -681,6 +698,15 @@ void BackendHandler::updateSliderValue(int sliderValue) {
     }
 }
 
+double BackendHandler::getThrottlePercentage(int current_throttle) {
+
+    if (cfg.max_throttle <= cfg.min_throttle)
+        return 0.0;
+
+    return 100.0 * (current_throttle - cfg.min_throttle) / (cfg.max_throttle - cfg.min_throttle);
+}
+
+// AUTO-CONTROLLER FUNCTIONS
 void BackendHandler::registerController(const QString& name, Controller* controller) {
     if (controller == nullptr) return;
     registered_controllers.insert(name, controller);
@@ -694,9 +720,7 @@ void BackendHandler::setActiveController(const QString& name) {
     active_controller = controller_iterator.value();
 }
 
-void BackendHandler::executeEmergencyStop() {
-    this->resetExperiment();
-}
+// EXPERIMENT FUNCTIONS
 
 void BackendHandler::initialize_stabilizing_thrust() {
     stabilizing_thrust = true;
@@ -706,6 +730,12 @@ void BackendHandler::initialize_stabilizing_thrust() {
     if (dt_ms <= 0) dt_ms = 100;
     max_thrust_samples = static_cast<int>((cfg.thrust_stab_wait_time_ms / dt_ms));
 }
+
+void BackendHandler::executeEmergencyStop() {
+    this->resetExperiment();
+}
+
+
 
 void BackendHandler::publishThrottle(int new_throttle) {
 

@@ -171,6 +171,7 @@ private:
     int transition_stab_wait_time_ms = 3000;
 
     QTimer* mqtt_data_timer = nullptr;
+    QTimer* basic_auto_timer = nullptr;
 
     double Kp = 0.005;
     double Ki = 0.001; 
