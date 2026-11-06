@@ -14,6 +14,12 @@ class QSlider;
 class QLabel;
 class QDialog; 
 
+struct LogEntry {
+    double timeInSeconds;
+    double thrust, voltage, current, rpm, throttle, power, aoa, airspeed;
+    QString propName;
+};
+
 enum ExperimentStage {
     IncrementRPMTarget,
     AdjustThrottle,

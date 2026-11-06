@@ -41,11 +41,6 @@ struct GraphDataPoint {
     double value;
 };
 
-struct LogEntry {
-    double timeInSeconds;
-    double thrust, voltage, current, rpm, throttle, power, aoa, airspeed;
-    QString propName;
-};
 
 enum IconType { Mode, Scene, Logging, EscapeExperiment, Propeller, Tuning, StopMotor, Status, Calibration, Settings, Save };
 

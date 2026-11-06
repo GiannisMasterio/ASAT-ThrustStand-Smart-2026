@@ -19,6 +19,7 @@ public:
     void addDataPoint(double time, double value);
     void setTitle(const QString& title);
     void setAxisLabels(const QString& xLabel, const QString& yLabel);
+    void addSecondaryData(const QVector<double>& x, const QVector<double>& y, const QString& name);
 
     QCustomPlot* getPlot() { return customPlot; }
 

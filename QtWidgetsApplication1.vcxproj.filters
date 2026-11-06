@@ -32,11 +32,8 @@
     <ClCompile Include="src\GraphContainer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\propellerwindow.cpp">
+    <ClCompile Include="src\PropellerWindow.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Header\propellerwindow.h">
-      <Filter>Header Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -76,6 +73,9 @@
       <Filter>Header Files</Filter>
     </QtMoc>
     <QtMoc Include="Header\BatteryWidget.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="Header\PropellerWindow.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>

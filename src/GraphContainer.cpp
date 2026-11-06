@@ -129,3 +129,29 @@ void GraphContainer::setAxisLabels(const QString& xLabel, const QString& yLabel)
         customPlot->replot();
     }
 }
+
+void GraphContainer::addSecondaryData(const QVector<double>& x, const QVector<double>& y, const QString& name) {
+    if (!customPlot) return;
+
+    if (customPlot->graphCount() < 2) {
+        customPlot->addGraph();
+        customPlot->graph(1)->setPen(QPen(QColor("#fbbf24"), 2.2, Qt::DashLine));
+        customPlot->graph(1)->setBrush(Qt::NoBrush);
+
+        customPlot->legend->setBrush(QColor(255, 255, 255, 18));
+        customPlot->legend->setBorderPen(QPen(QColor(255, 255, 255, 40), 1));
+        customPlot->legend->setTextColor(QColor(226, 232, 240));
+        customPlot->legend->setFont(QFont("Segoe UI", 10));
+        customPlot->axisRect()->insetLayout()->setInsetAlignment(0, Qt::AlignTop | Qt::AlignRight);
+    }
+
+    customPlot->graph(1)->setName(name);
+    customPlot->graph(1)->setData(x, y);
+    customPlot->legend->setVisible(!x.isEmpty());
+
+    // Ξαναϋπολογισμός των αξόνων ώστε να χωράνε και οι δύο καμπύλες
+    customPlot->rescaleAxes();
+    customPlot->xAxis->scaleRange(1.1, customPlot->xAxis->range().center());
+    customPlot->yAxis->scaleRange(1.1, customPlot->yAxis->range().center());
+    customPlot->replot();
+}

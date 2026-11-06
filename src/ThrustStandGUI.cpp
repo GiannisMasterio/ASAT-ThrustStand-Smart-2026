@@ -546,7 +546,7 @@ void ThrustStandGUI::tune_controller() {
 
     tune_controller_window->show();
 }
-
+/*
 void ThrustStandGUI::inspect_propeller_logs() {
     const auto& cfg = backend_handler->cfg;
 
@@ -770,7 +770,12 @@ void ThrustStandGUI::inspect_propeller_logs() {
 
     selection_window->show();
 }
+ */
 
+void ThrustStandGUI::inspect_propeller_logs() {
+    PropellerWindow* propWindow = new PropellerWindow(backend_handler);
+    propWindow->show();
+} 
 void ThrustStandGUI::updateBottomToolbar() {
     if (current_scene == "GRAPH") second_icon_path = HOMEICONPATH;
     else second_icon_path = GRAPHICONPATH;

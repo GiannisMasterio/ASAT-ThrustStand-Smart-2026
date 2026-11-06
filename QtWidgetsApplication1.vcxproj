@@ -128,9 +128,9 @@ Qt6Mqtt.lib;%(AdditionalDependencies)</AdditionalDependencies>
     <ClCompile Include="src\GraphContainer.cpp" />
     <ClCompile Include="src\BackendHandler.cpp" />
     <ClCompile Include="src\MqttClient.cpp" />
-    <ClCompile Include="src\propellerwindow.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    <ClCompile Include="src\PropellerWindow.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="src\QCustomPlot.cpp" />
     <ClCompile Include="src\ThrustStandGUI.cpp" />
@@ -157,10 +157,10 @@ Qt6Mqtt.lib;%(AdditionalDependencies)</AdditionalDependencies>
     <ClInclude Include="Header\Constants.h" />
     <QtMoc Include="Header\QCustomPlot.h" />
     <QtMoc Include="Header\GraphContainer.h" />
-    <ClCompile Include="Header\propellerwindow.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
+    <QtMoc Include="Header\PropellerWindow.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </QtMoc>
     <ClInclude Include="resource.h" />
     <QtMoc Include="Header\Containers.h" />
   </ItemGroup>
