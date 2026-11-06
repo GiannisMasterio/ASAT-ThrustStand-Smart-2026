@@ -768,10 +768,6 @@ void BackendHandler::execute_experiment() {
         experiment_just_started = false;
         playAudio(100, "CurrentLimitReached");
     }
-    else if (tel.throttle == cfg.max_throttle && !ending_transition) {
-        changeExperimentStage(EmergencyStop);
-        experiment_just_started = false;
-    }
     else if (experiment_just_started) {
         playAudio(100, "ExperimentBeginning");
         experiment_just_started = false;
