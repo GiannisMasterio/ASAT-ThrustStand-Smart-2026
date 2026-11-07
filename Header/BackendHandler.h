@@ -73,7 +73,6 @@ public:
     bool isSoundPlaying(QString audio);
     void setSoundStatus(bool sound_status);
 
- 
     void start_mqtt();
     void disconnect_mqtt();
     void change_mqtt_topic();

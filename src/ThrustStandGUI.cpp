@@ -546,6 +546,7 @@ void ThrustStandGUI::tune_controller() {
 
     tune_controller_window->show();
 }
+
 /*
 void ThrustStandGUI::inspect_propeller_logs() {
     const auto& cfg = backend_handler->cfg;
@@ -776,6 +777,7 @@ void ThrustStandGUI::inspect_propeller_logs() {
     PropellerWindow* propWindow = new PropellerWindow(backend_handler);
     propWindow->show();
 } 
+
 void ThrustStandGUI::updateBottomToolbar() {
     if (current_scene == "GRAPH") second_icon_path = HOMEICONPATH;
     else second_icon_path = GRAPHICONPATH;
@@ -1250,6 +1252,8 @@ void ThrustStandGUI::create_approve_window() {
     approve_window->show();
 }
 
+// -----------------------------------------------------
+
 void ThrustStandGUI::setupSettingsFields() {
     
     auto& cfg = backend_handler->cfg;
@@ -1284,44 +1288,6 @@ void ThrustStandGUI::setupSettingsFields() {
         {"Log Only On Experiment:", "", "", false, &(cfg.log_only_during_experiment), SettingsElements::Bool},
         {"RPM Filter:", "", "", false, &(backend_handler->use_rpm_filter), SettingsElements::Bool}
     };
-}
-
-void ThrustStandGUI::setupExperimentFields() {
-
-    auto& cfg = backend_handler->cfg;
-    auto& cal = backend_handler->cal;
-    auto& mqttcfg = backend_handler->mqttcfg;
-
-    experiment_fields = QVector<SettingsElements> {
-        // --- General Settings ---
-        {"Propeller Name:", "", "", false, &cfg.propeller_name, SettingsElements::String},
-        {"Thrust Threshold:", "", "", true, &cfg.stabilize_target_threshold, SettingsElements::Double},
-
-        // --- Aerodynamics / Environment ---
-        {"Angle Of Attack (deg):", "", "", true, &cfg.angle_of_attack, SettingsElements::Double},
-        {"Airspeed (m/sec):", "", "Enter airspeed in m/sec", true, &cfg.airspeed, SettingsElements::Double},
-
-        // --- Thrust & RPM Parameters ---
-        {"Thrust Clemency:", "", "", true, &cfg.thrust_clemency, SettingsElements::Double},
-        {"RPM Step:", "", "", true, &cfg.rpm_step, SettingsElements::Int},
-        {"Max RPM:", "", "", true, &cfg.max_rpm, SettingsElements::Int},
-        {"RPM Clemency:", "", "", true, &cfg.rpm_clemency, SettingsElements::Int},
-        {"Use MaxRPM Logic:", "", "", false, &cfg.use_max_rpm_logic, SettingsElements::Bool},
-
-        // --- Timings & Delays ---
-        {"Thrust Stabilizing WaitTime (ms):", "", "", true, &cfg.thrust_stab_wait_time_ms, SettingsElements::Int},
-        {"Transition Delay Time (ms):", "", "", true, &cfg.transition_delay_ms, SettingsElements::Int},
-        {"Wait After Thrust (ms):", "", "", true, &cfg.record_data_wait_time_ms, SettingsElements::Int},
-
-        // --- Calibration ---
-        {"Thrust Offset (N):", "", "", true, &cal.thrust_offset, SettingsElements::Double},
-
-        // --- Experiment Bounds ---
-        {"Experiment is Static", "", "", false, &cfg.experiment_is_static, SettingsElements::Bool },
-        {"First Experiment", "", "", false, &cfg.first_experiment, SettingsElements::Bool},
-        {"Last Experiment", "", "", false, &cfg.last_experiment, SettingsElements::Bool}
-    };
-   
 }
 
 void ThrustStandGUI::chooseSettings() {
@@ -1366,35 +1332,6 @@ void ThrustStandGUI::chooseSettings() {
         l->setContentsMargins(22, 20, 22, 20);
         l->setSpacing(6);
     }
-
-    settings_fields = {
-        // --- Data & MQTT ---
-        {"Data Source:", "", "", false, &backend_handler->selected_data_source, SettingsElements::String},
-        {"Receive Topic (Subscription):", "", "", false, &mqttcfg.mqtt_receive_topic, SettingsElements::String},
-        {"Send Topic (Publishing):", "", "", false, &mqttcfg.mqtt_send_topic, SettingsElements::String},
-
-        // --- Configuration ---
-        {"Propeller Name:", "", "", false, &cfg.propeller_name, SettingsElements::String},
-        {"Angle Of Attack (deg):", "", "Enter AOA", true, &cfg.angle_of_attack, SettingsElements::Double},
-        {"Airspeed (m/sec):", "", "Enter airspeed", true, &cfg.airspeed, SettingsElements::Double},
-        {"Min Throttle (us):", "", "", true, &cfg.min_throttle, SettingsElements::Int},
-        {"Max Throttle (us):", "", "", true, &cfg.max_throttle, SettingsElements::Int},
-        {"Max RPM:", "", "", true, &cfg.max_rpm, SettingsElements::Int},
-        {"RPM Clemency:", "", "", true, &cfg.rpm_clemency, SettingsElements::Int},
-        {"RPM Step:", "", "", true, &cfg.rpm_step, SettingsElements::Int},
-        {"Thrust Stabilizing WaitTime (ms):", "", "", true, &cfg.thrust_stab_wait_time_ms, SettingsElements::Int},
-        {"Wait After Thrust (ms):", "", "", true, &cfg.record_data_wait_time_ms, SettingsElements::Int},
-        {"Current Limit (A):", "", "", true, &cfg.current_limit, SettingsElements::Double},
-
-        // --- Calibration ---
-        {"Thrust Offset (N):", "", "", true, &cal.thrust_offset, SettingsElements::Double},
-        {"Current Offset (A):", "", "", true, &cal.current_offset, SettingsElements::Double},
-
-        // --- Toggles / Booleans ---
-        {"Sound:", "", "", false, &(backend_handler->soundOn), SettingsElements::Bool},
-        {"Log Only On Experiment:", "", "", false, &(cfg.log_only_during_experiment), SettingsElements::Bool},
-        {"RPM Filter:", "", "", false, &(backend_handler->use_rpm_filter), SettingsElements::Bool}
-    };
 
     for (auto& field : settings_fields) {
         // Το labeltext μένει όπως είναι (χρησιμοποιείται στη λογική). Αλλάζει μόνο το κείμενο που φαίνεται.
@@ -1681,6 +1618,46 @@ void ThrustStandGUI::loadSettings() {
     this->updateBottomToolbar();
 
     qDebug() << "Settings loaded successfully!";
+}
+
+//------------------------------------------------------
+
+void ThrustStandGUI::setupExperimentFields() {
+
+    auto& cfg = backend_handler->cfg;
+    auto& cal = backend_handler->cal;
+    auto& mqttcfg = backend_handler->mqttcfg;
+
+    experiment_fields = QVector<SettingsElements>{
+        // --- General Settings ---
+        { "Propeller Name:", "", "", false, &cfg.propeller_name, SettingsElements::String },
+        { "Thrust Threshold:", "", "", true, &cfg.stabilize_target_threshold, SettingsElements::Double },
+
+        // --- Aerodynamics / Environment ---
+        { "Angle Of Attack (deg):", "", "", true, &cfg.angle_of_attack, SettingsElements::Double },
+        { "Airspeed (m/sec):", "", "Enter airspeed in m/sec", true, &cfg.airspeed, SettingsElements::Double },
+
+        // --- Thrust & RPM Parameters ---
+        { "Thrust Clemency:", "", "", true, &cfg.thrust_clemency, SettingsElements::Double },
+        { "RPM Step:", "", "", true, &cfg.rpm_step, SettingsElements::Int },
+        { "Max RPM:", "", "", true, &cfg.max_rpm, SettingsElements::Int },
+        { "RPM Clemency:", "", "", true, &cfg.rpm_clemency, SettingsElements::Int },
+        { "Use MaxRPM Logic:", "", "", false, &cfg.use_max_rpm_logic, SettingsElements::Bool },
+
+        // --- Timings & Delays ---
+        { "Thrust Stabilizing WaitTime (ms):", "", "", true, &cfg.thrust_stab_wait_time_ms, SettingsElements::Int },
+        { "Transition Delay Time (ms):", "", "", true, &cfg.transition_delay_ms, SettingsElements::Int },
+        { "Wait After Thrust (ms):", "", "", true, &cfg.record_data_wait_time_ms, SettingsElements::Int },
+
+        // --- Calibration ---
+        { "Thrust Offset (N):", "", "", true, &cal.thrust_offset, SettingsElements::Double },
+
+        // --- Experiment Bounds ---
+        { "Experiment is Static", "", "", false, &cfg.experiment_is_static, SettingsElements::Bool },
+        { "First Experiment", "", "", false, &cfg.first_experiment, SettingsElements::Bool },
+        { "Last Experiment", "", "", false, &cfg.last_experiment, SettingsElements::Bool }
+    };
+
 }
 
 void ThrustStandGUI::customizeExperiment() {
