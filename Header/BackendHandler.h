@@ -56,6 +56,7 @@ public:
     ExperimentConfig cfg;
     CalibrationConfig cal;
     MqttConfig mqttcfg;
+    ControllerConfig ctrl_cfg;
 
     Controller* active_controller = nullptr;
     StepController* step_controller = nullptr;
@@ -178,14 +179,6 @@ private:
     QTimer* mqtt_data_timer = nullptr;
     QTimer* basic_auto_timer = nullptr;
 
-    double Kp = 0.005;
-    double Ki = 0.001; 
-    double Kd = 0; // Just Zero for ThrustStand
-    double integral_term = 0.0;
-    double prev_error = 0.0;
-
-    double b0_val = 0, wc_val = 0, wo_val = 0, min_out = 0, max_out = 0;
-
     int max_thrust_samples = 0;
     int max_transition_samples = 0;
 
@@ -217,8 +210,8 @@ signals:
 
 public slots:
 
-    void manualToggleEvent(int state);
-    void handleMode();
+    void manualToggleBasicMode(int state);
+    void handleAutoMode();
     void openSliderWindow();
     void updateSliderValue(int sliderValue);
     void setValue(double newValue) { slider_stored_value = newValue; }

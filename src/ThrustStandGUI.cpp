@@ -603,12 +603,52 @@ void ThrustStandGUI::tune_controller_window() {
         Controller* ctrl = backend_handler->registered_controllers.value(selectedName, nullptr);
 
         if (ctrl) {
-            QVector<QPair<QString, double>> updated_params;
-            for (auto it = dynamic_input_fields->constBegin(); it != dynamic_input_fields->constEnd(); ++it) {
-                updated_params.push_back(qMakePair(it.key(), it.value()->text().toDouble()));
+            // 1. Παίρνουμε τις παλιές παραμέτρους για να δούμε αν άλλαξε κάτι
+            QVector<QPair<QString, double>> old_params = ctrl->return_parameter_list();
+            QMap<QString, double> old_map;
+            for (const auto& p : old_params) {
+                old_map.insert(p.first, p.second);
             }
+
+            QVector<QPair<QString, double>> updated_params;
+            bool changed = (backend_handler->active_controller != ctrl);
+
+            auto& c = backend_handler->ctrl_cfg;
+            auto& cfg = backend_handler->cfg;
+
+            for (auto it = dynamic_input_fields->constBegin(); it != dynamic_input_fields->constEnd(); ++it) {
+                QString key = it.key();
+                double new_val = it.value()->text().replace(",", ".").toDouble();
+                updated_params.push_back(qMakePair(key, new_val));
+
+                // Έλεγχος αν η τιμή άλλαξε σε σχέση με την προηγούμενη
+                if (std::abs(old_map.value(key, 0.0) - new_val) > 1e-6) {
+                    changed = true;
+                }
+
+                // 2. Συγχρονισμός με τις μεταβλητές που διαβάζει η saveSettings()
+                if (key == "Throttle Increase Step") {
+                    cfg.throttle_increase_step = static_cast<int>(qRound(new_val));
+                }
+                else if (key == "Kp Value") c.Kp = new_val;
+                else if (key == "Ki Value") c.Ki = new_val;
+                else if (key == "Kd Value") c.Kd = new_val;
+                else if (key == "Clamping Authority (For Clamping Anti-Windup)") c.clamping_authority = new_val;
+                else if (key == "b0 (System Gain)") c.b0 = new_val;
+                else if (key == "Wc (Controller Bandwidth)") c.wc = new_val;
+                else if (key == "Wo (Observer Bandwidth)") c.wo = new_val;
+            }
+
             ctrl->set_new_parameters(updated_params);
             this->backend_handler->setActiveController(selectedName);
+
+            // 3. Αν υπήρξε αλλαγή, ενεργοποιούμε το κουμπί Save στο toolbar
+            if (changed) {
+                backend_handler->unsaved_settings_changes = true;
+                this->updateBottomToolbar();
+            }
+
+            backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
             qDebug() << "Tuned and activated Controller:" << selectedName;
         }
         tune_controller_window->close();
@@ -817,7 +857,36 @@ void ThrustStandGUI::changeFunctionMode() {
     }
 }
 
-// EXPERIMENT
+// DIFFERENT
+void ThrustStandGUI::updateControllers() {
+
+    auto& ctrl = backend_handler->ctrl_cfg;
+    auto& cfg = backend_handler->cfg;
+
+    if (backend_handler->step_controller) {
+        backend_handler->step_controller->set_new_parameters({
+            qMakePair(QString("Throttle Increase Step"), (double)cfg.throttle_increase_step)
+            });
+    }
+    if (backend_handler->pid_controller) {
+        backend_handler->pid_controller->set_new_parameters({
+            qMakePair(QString("Kp Value"), ctrl.Kp),
+            qMakePair(QString("Ki Value"), ctrl.Ki),
+            qMakePair(QString("Kd Value"), ctrl.Kd),
+            qMakePair(QString("Clamping Authority (For Clamping Anti-Windup)"), ctrl.clamping_authority)
+            });
+    }
+    if (backend_handler->adrc_controller) {
+        backend_handler->adrc_controller->set_new_parameters({
+            qMakePair(QString("b0 (System Gain)"), ctrl.b0),
+            qMakePair(QString("Wc (Controller Bandwidth)"), ctrl.wc),
+            qMakePair(QString("Wo (Observer Bandwidth)"), ctrl.wo)
+            });
+    }
+
+    updateBottomToolbar();
+    qDebug() << "Settings loaded successfully!";
+}
 
 void ThrustStandGUI::stopMotor() {
     backend_handler->executeEmergencyStop();
@@ -832,232 +901,6 @@ void ThrustStandGUI::escapeExperiment() {
         backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "ExperimentCancelled");
     }
 }
-
-/*
-void ThrustStandGUI::inspect_propeller_logs() {
-    const auto& cfg = backend_handler->cfg;
-
-    QWidget* selection_window = new QWidget(nullptr, Qt::Window);
-    selection_window->setObjectName("ModernDialog");
-    selection_window->setWindowTitle("Inspect Propeller Logs");
-    selection_window->setFixedSize(1600, 800);
-    selection_window->setWindowModality(Qt::ApplicationModal);
-    selection_window->setAttribute(Qt::WA_DeleteOnClose);
-    selection_window->setAttribute(Qt::WA_StyledBackground, true);
-    selection_window->setWindowIcon(QIcon(ICONPATH));
-    selection_window->setStyleSheet(DIALOG_STYLE);
-
-    QVBoxLayout* main_layout = new QVBoxLayout(selection_window);
-    main_layout->setContentsMargins(30, 24, 30, 24);
-    main_layout->setSpacing(18);
-
-    // Μικρό label με κεφαλαία και απόσταση γραμμάτων (το χρησιμοποιούμε σε πολλά σημεία)
-    auto makeSectionLabel = [selection_window](const QString& text) {
-        QLabel* l = new QLabel(text, selection_window);
-        l->setObjectName("SectionLabel");
-        QFont f("Segoe UI", 10, QFont::DemiBold);
-        f.setLetterSpacing(QFont::AbsoluteSpacing, 2);
-        l->setFont(f);
-        return l;
-        };
-
-    // --- Πάνω γραμμή: επιλογή προπέλας ---
-    QHBoxLayout* top_row = new QHBoxLayout();
-    QLabel* prop_label = makeSectionLabel("SELECTED PROPELLER");
-
-    QComboBox* propellerBox = new QComboBox(selection_window);
-    propellerBox->setEditable(true);
-    propellerBox->setFixedWidth(280);
-    propellerBox->setMinimumHeight(40);
-    propellerBox->completer()->setCompletionMode(QCompleter::PopupCompletion);
-    propellerBox->completer()->setFilterMode(Qt::MatchContains);
-    for (const auto& prop : cfg.propeller_list) propellerBox->addItem(prop);
-
-    top_row->addStretch();
-    top_row->addWidget(prop_label);
-    top_row->addSpacing(14);
-    top_row->addWidget(propellerBox);
-    top_row->addStretch();
-    main_layout->addLayout(top_row);
-
-    // --- Γραφήματα ---
-    QHBoxLayout* graphs_layout = new QHBoxLayout();
-    graphs_layout->setSpacing(24);
-    QStringList log_params = { "Time", "Thrust (N)", "Voltage (V)", "Current (A)", "RPM", "Efficiency", "Power (W)", "Airspeed (m/sec)" };
-
-    struct GraphGroup {
-        QComboBox* x_sel;
-        QComboBox* y_sel;
-        GraphContainer* graph;
-    };
-    QList<GraphGroup*> groups;
-
-    auto createGraphColumn = [&](QString defaultY) {
-        QVBoxLayout* col = new QVBoxLayout();
-        col->setSpacing(12);
-        QHBoxLayout* selectors = new QHBoxLayout();
-        selectors->setSpacing(8);
-
-        GraphGroup* g = new GraphGroup();
-        g->x_sel = new QComboBox();
-        g->y_sel = new QComboBox();
-        g->x_sel->addItems(log_params);
-        g->y_sel->addItems(log_params);
-        g->x_sel->setMinimumWidth(170);
-        g->y_sel->setMinimumWidth(170);
-
-        g->x_sel->setCurrentText("Time");
-        g->y_sel->setCurrentText(defaultY);
-
-        g->graph = new GraphContainer("", "", selection_window);
-        groups.append(g);
-
-        auto updateHeader = [=]() {
-            QString title = QString("%1 VS %2")
-                .arg(g->y_sel->currentText())
-                .arg(g->x_sel->currentText());
-            g->graph->setTitle(title);
-            };
-        updateHeader();
-
-        connect(g->x_sel, &QComboBox::currentTextChanged, updateHeader);
-        connect(g->y_sel, &QComboBox::currentTextChanged, updateHeader);
-
-        selectors->addStretch();
-        selectors->addWidget(makeSectionLabel("X"));
-        selectors->addWidget(g->x_sel);
-        selectors->addSpacing(20);
-        selectors->addWidget(makeSectionLabel("Y"));
-        selectors->addWidget(g->y_sel);
-        selectors->addStretch();
-
-        col->addLayout(selectors);
-        col->addWidget(g->graph, 1);
-        return col;
-        };
-
-    graphs_layout->addLayout(createGraphColumn("Thrust (N)"), 1);
-    graphs_layout->addLayout(createGraphColumn("RPM"), 1);
-    main_layout->addLayout(graphs_layout, 1);
-
-    // --- Footer ---
-    QHBoxLayout* footer = new QHBoxLayout();
-    footer->setSpacing(16);
-    QPushButton* btn_close = new QPushButton("Export Graphs", selection_window);
-    QPushButton* btn_load = new QPushButton("Load Data", selection_window);
-
-    btn_close->setFixedSize(190, 46);
-    btn_load->setFixedSize(190, 46);
-    btn_load->setObjectName("PrimaryButton");
-    btn_close->setCursor(Qt::PointingHandCursor);
-    btn_load->setCursor(Qt::PointingHandCursor);
-
-    footer->addStretch();
-    footer->addWidget(btn_close);
-    footer->addWidget(btn_load);
-    footer->addStretch();
-    main_layout->addLayout(footer);
-
-    // --- Load Data (αμετάβλητο) ---
-    connect(btn_load, &QPushButton::clicked, this, [=]() {
-        backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
-        QString targetProp = propellerBox->currentText();
-        QFile file(backend_handler->log_file_path);
-        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) return;
-
-        QTextStream in(&file);
-        QVector<LogEntry> filteredEntries;
-        bool isFirstLine = true;
-        double firstEntryTime = -1.0;
-
-        while (!in.atEnd()) {
-            QString line = in.readLine().trimmed();
-            if (line.isEmpty()) continue;
-            QStringList parts = line.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
-
-            if (isFirstLine && parts.at(0) == "Timestamp") {
-                isFirstLine = false;
-                continue;
-            }
-
-            if (parts.size() >= 10 && parts.at(7) == targetProp) {
-                LogEntry entry;
-                QTime t = QTime::fromString(parts.at(0), "HH:mm:ss");
-                double absoluteSecs = (double)QTime(0, 0).secsTo(t);
-
-                if (firstEntryTime < 0) firstEntryTime = absoluteSecs;
-                entry.timeInSeconds = absoluteSecs - firstEntryTime;
-
-                entry.thrust = parts.at(1).toDouble();
-                entry.voltage = parts.at(2).toDouble();
-                entry.current = parts.at(3).toDouble();
-                entry.rpm = parts.at(4).toDouble();
-                entry.throttle = parts.at(5).toDouble();
-                entry.power = parts.at(6).toDouble();
-                entry.propName = parts.at(7);
-                entry.aoa = parts.at(8).toDouble();
-                entry.airspeed = parts.at(9).toDouble();
-
-                filteredEntries.append(entry);
-            }
-        }
-        file.close();
-
-        for (auto g : groups) {
-            QVector<double> x_vals, y_vals;
-            QString curX = g->x_sel->currentText();
-            QString curY = g->y_sel->currentText();
-
-            auto extractValue = [&](QString param, const LogEntry& e) {
-                if (param == "Time") return (double)e.timeInSeconds;
-                if (param == "Thrust (N)") return e.thrust;
-                if (param == "Voltage (V)") return e.voltage;
-                if (param == "Current (A)") return e.current;
-                if (param == "RPM") return e.rpm;
-                if (param == "Power (W)") return e.power;
-                if (param == "Airspeed (m/sec)") return e.airspeed;
-                if (param == "Efficiency") return (e.power > 0.1) ? (e.thrust * e.airspeed / e.power) : 0.0;
-                return 0.0;
-                };
-
-            for (const auto& e : filteredEntries) {
-                x_vals.append(extractValue(curX, e));
-                y_vals.append(extractValue(curY, e));
-            }
-
-            g->graph->setAxisLabels(curX, curY);
-            g->graph->setFullData(x_vals, y_vals);
-        }
-        });
-
-    // --- Export Graphs (αμετάβλητο) ---
-    connect(btn_close, &QPushButton::clicked, selection_window, [=]() {
-        backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
-
-        QDir dir("Exports");
-        if (!dir.exists()) dir.mkpath(".");
-
-        QString targetProp = propellerBox->currentText();
-        QString aoa_str = QString::number(backend_handler->cfg.angle_of_attack, 'f', 1).replace(".", "_");
-        QString airspeed_str = QString::number(backend_handler->cfg.airspeed, 'f', 1).replace(".", "_");
-
-        for (int i = 0; i < groups.size(); ++i) {
-            QString graphParam = groups[i]->y_sel->currentText().split(" ").at(0);
-            QString fileName = QString("Exports/%1_%2_%3_%4_thruststand.png")
-                .arg(targetProp)
-                .arg(airspeed_str)
-                .arg(aoa_str)
-                .arg(graphParam);
-
-            if (groups[i]->graph->getPlot()->savePng(fileName, 1200, 800)) {
-                qDebug() << "Saved graph to:" << fileName;
-            }
-        }
-        });
-
-    selection_window->show();
-}
- */
 
 void ThrustStandGUI::inspect_propeller_logs() {
     PropellerWindow* propWindow = new PropellerWindow(backend_handler);
@@ -1219,6 +1062,7 @@ void ThrustStandGUI::setupSettingsFields() {
     auto& cfg = backend_handler->cfg;
     auto& cal = backend_handler->cal;
     auto& mqttcfg = backend_handler->mqttcfg;
+    auto& ctrl = backend_handler->ctrl_cfg;
 
     settings_fields = QVector<SettingsElements>{
         // --- Data & MQTT ---
@@ -1246,7 +1090,20 @@ void ThrustStandGUI::setupSettingsFields() {
         // --- Toggles / Booleans ---
         {"Sound:", "", "", false, &(backend_handler->soundOn), SettingsElements::Bool},
         {"Log Only On Experiment:", "", "", false, &(cfg.log_only_during_experiment), SettingsElements::Bool},
-        {"RPM Filter:", "", "", false, &(backend_handler->use_rpm_filter), SettingsElements::Bool}
+        {"RPM Filter:", "", "", false, &(backend_handler->use_rpm_filter), SettingsElements::Bool},
+
+        // --- STEP CONTROLLER ---
+        { "Throttle Increase Step:", "", "Throttle Step", true, &ctrl.throttle_step, SettingsElements::Int},
+        // --- PID CONTROLLER ---
+        { "Kp:", "", "Proportional Gain", true, &ctrl.Kp, SettingsElements::Double },
+        { "Ki:", "", "Integral Gain", true, &ctrl.Ki, SettingsElements::Double },
+        { "Kd:", "", "Derivative Gain", true, &ctrl.Kd, SettingsElements::Double },
+        { "Clamping Authority:", "", "0.0 - 1.0", true, &ctrl.clamping_authority, SettingsElements::Double },
+
+         // --- ADRC CONTROLLER ---
+        { "ADRC: b0 (Gain):", "", "System Gain", true, &ctrl.b0, SettingsElements::Double },
+        { "ADRC: Wc (Bandwidth):", "", "Controller Bandwidth", true, &ctrl.wc, SettingsElements::Double },
+        { "ADRC: Wo (Observer):", "", "Observer Bandwidth", true, &ctrl.wo, SettingsElements::Double },
     };
 }
 
@@ -1259,7 +1116,7 @@ void ThrustStandGUI::chooseSettings() {
     QWidget* settings_window = new QWidget(nullptr, Qt::Window);
     settings_window->setObjectName("ModernDialog");
     settings_window->setWindowTitle("Settings");
-    settings_window->setFixedSize(560, 780);
+    settings_window->setFixedSize(620, 780); // 620 πλάτος για να χωράνε όλα τα tabs χωρίς βελάκια!
     settings_window->setWindowModality(Qt::ApplicationModal);
     settings_window->setAttribute(Qt::WA_DeleteOnClose);
     settings_window->setAttribute(Qt::WA_StyledBackground, true);
@@ -1282,19 +1139,24 @@ void ThrustStandGUI::chooseSettings() {
     tabWidget->setDocumentMode(false);
 
     QWidget* generalTab = new QWidget(), * mqttTab = new QWidget(), * limitTab = new QWidget(),
-        * audioTab = new QWidget(), * expTab = new QWidget();
+        * audioTab = new QWidget(), * expTab = new QWidget(), * controllerTab = new QWidget();
 
     QVBoxLayout* generalLayout = new QVBoxLayout(generalTab), * mqttLayout = new QVBoxLayout(mqttTab),
         * limitLayout = new QVBoxLayout(limitTab), * audioLayout = new QVBoxLayout(audioTab),
-        * expLayout = new QVBoxLayout(expTab);
+        * expLayout = new QVBoxLayout(expTab), * controllerLayout = new QVBoxLayout(controllerTab);
 
-    for (auto l : { generalLayout, mqttLayout, limitLayout, audioLayout, expLayout }) {
+    for (auto l : { generalLayout, mqttLayout, limitLayout, audioLayout, expLayout, controllerLayout }) {
         l->setContentsMargins(22, 20, 22, 20);
         l->setSpacing(6);
     }
 
+    QGridLayout* ctrlGrid = new QGridLayout();
+    ctrlGrid->setHorizontalSpacing(16);
+    ctrlGrid->setVerticalSpacing(12);
+    controllerLayout->addLayout(ctrlGrid);
+    int ctrlCellCount = 0;
+
     for (auto& field : settings_fields) {
-        // Το labeltext μένει όπως είναι (χρησιμοποιείται στη λογική). Αλλάζει μόνο το κείμενο που φαίνεται.
         QString shownText = field.labeltext;
         if (shownText.endsWith(":")) shownText.chop(1);
         field.label = new QLabel(shownText.toUpper(), settings_window);
@@ -1302,6 +1164,17 @@ void ThrustStandGUI::chooseSettings() {
         QFont lf("Segoe UI", 9, QFont::DemiBold);
         lf.setLetterSpacing(QFont::AbsoluteSpacing, 1.5);
         field.label->setFont(lf);
+
+        // Έλεγχος αν το πεδίο ανήκει στους Controllers (πιάνει ΚΑΙ τα σκέτα Kp, Ki, Kd, Clamping!)
+        bool isControllerField = field.labeltext.startsWith("PID") ||
+            field.labeltext.startsWith("ADRC") ||
+            field.labeltext.startsWith("Step") ||
+            field.labeltext.startsWith("Throttle Increase") ||
+            field.labeltext.startsWith("Kp") ||
+            field.labeltext.startsWith("Ki") ||
+            field.labeltext.startsWith("Kd") ||
+            field.labeltext.startsWith("Clamping") ||
+            field.labeltext.startsWith("Integral");
 
         if (field.type == SettingsElements::Bool) {
             QCheckBox* checkBox = new QCheckBox("Enabled", settings_window);
@@ -1330,28 +1203,53 @@ void ThrustStandGUI::chooseSettings() {
                 lineEdit->setValidator(new QIntValidator(0, 100000, lineEdit));
             }
             else if (field.type == SettingsElements::Double) {
-                lineEdit->setText(QString::number(*static_cast<double*>(field.targetVar), 'f', 2));
+                int decimals = isControllerField ? 4 : 2;
+                lineEdit->setText(QString::number(*static_cast<double*>(field.targetVar), 'f', decimals));
                 lineEdit->setValidator(new QDoubleValidator(lineEdit));
             }
             field.entry = lineEdit;
         }
 
-        // Τοποθέτηση στο σωστό Layout
+        // --- Κατανομή στα Tabs ---
+        if (isControllerField) {
+            QWidget* cell = new QWidget(settings_window);
+            QVBoxLayout* cl = new QVBoxLayout(cell);
+            cl->setContentsMargins(0, 0, 0, 0);
+            cl->setSpacing(4);
+            cl->addWidget(field.label);
+            cl->addWidget(field.entry);
+            ctrlGrid->addWidget(cell, ctrlCellCount / 2, ctrlCellCount % 2);
+            ctrlCellCount++;
+            continue;
+        }
+
         QVBoxLayout* target = generalLayout;
-        if (field.labeltext == "Sound:") target = audioLayout;
-        else if (field.labeltext.contains("Topic")) target = mqttLayout;
-        else if (field.labeltext.contains("Max") || field.labeltext.contains("Min") || field.labeltext.contains("Limit")) target = limitLayout;
-        else if (field.labeltext.contains("RPM") || field.labeltext.contains("Step") || field.labeltext.contains("WaitTime") || field.labeltext.contains("After")) target = expLayout;
+        if (field.labeltext == "Sound:") {
+            target = audioLayout;
+        }
+        else if (field.labeltext.contains("Topic")) {
+            target = mqttLayout;
+        }
+        else if (field.labeltext.contains("Max") || field.labeltext.contains("Min") || field.labeltext.contains("Limit")) {
+            target = limitLayout;
+        }
+        else if ((field.labeltext.contains("RPM") && field.labeltext != "RPM Filter:") ||
+            field.labeltext.contains("Step") ||
+            field.labeltext.contains("WaitTime") ||
+            field.labeltext.contains("After")) {
+            target = expLayout;
+        }
 
         target->addWidget(field.label);
         target->addWidget(field.entry);
         target->addSpacing(10);
     }
 
-    for (auto l : { generalLayout, mqttLayout, limitLayout, audioLayout, expLayout }) l->addStretch();
+    for (auto l : { generalLayout, mqttLayout, limitLayout, audioLayout, expLayout, controllerLayout }) l->addStretch();
 
     tabWidget->addTab(generalTab, "General");
     tabWidget->addTab(expTab, "Experiment");
+    tabWidget->addTab(controllerTab, "Controllers");
     tabWidget->addTab(limitTab, "Limits");
     tabWidget->addTab(mqttTab, "MQTT");
     tabWidget->addTab(audioTab, "Audio");
@@ -1377,7 +1275,6 @@ void ThrustStandGUI::chooseSettings() {
             return;
         }
 
-        // Κρατάμε τις παλιές τιμές που χρειάζονται ειδικό χειρισμό
         double old_thrust_offset = backend_handler->cal.thrust_offset;
         double old_current_offset = backend_handler->cal.current_offset;
         QString old_rx_topic = backend_handler->mqttcfg.mqtt_receive_topic;
@@ -1385,7 +1282,6 @@ void ThrustStandGUI::chooseSettings() {
 
         bool changed = false;
 
-        // Αυτόματο πέρασμα και αποθήκευση όλων των πεδίων στις μεταβλητές τους μέσω των Pointers
         for (const auto& field : settings_fields) {
             if (field.type == SettingsElements::Bool) {
                 QCheckBox* cb = qobject_cast<QCheckBox*>(field.entry);
@@ -1423,6 +1319,30 @@ void ThrustStandGUI::chooseSettings() {
         if (changed) {
             backend_handler->unsaved_settings_changes = true;
             this->updateBottomToolbar();
+        }
+
+        // --- Ενημέρωση των Controllers με reference στο ctrl_cfg ---
+        auto& ctrl = backend_handler->ctrl_cfg;
+
+        if (backend_handler->step_controller) {
+            backend_handler->step_controller->set_new_parameters({
+                qMakePair(QString("Throttle Increase Step"), (double)backend_handler->cfg.throttle_increase_step)
+                });
+        }
+        if (backend_handler->pid_controller) {
+            backend_handler->pid_controller->set_new_parameters({
+                qMakePair(QString("Kp Value"), ctrl.Kp),
+                qMakePair(QString("Ki Value"), ctrl.Ki),
+                qMakePair(QString("Kd Value"), ctrl.Kd),
+                qMakePair(QString("Clamping Authority (For Clamping Anti-Windup)"), ctrl.clamping_authority)
+                });
+        }
+        if (backend_handler->adrc_controller) {
+            backend_handler->adrc_controller->set_new_parameters({
+                qMakePair(QString("b0 (System Gain)"), ctrl.b0),
+                qMakePair(QString("Wc (Controller Bandwidth)"), ctrl.wc),
+                qMakePair(QString("Wo (Observer Bandwidth)"), ctrl.wo)
+                });
         }
 
         auto& tel = backend_handler->tel;
@@ -1572,7 +1492,7 @@ void ThrustStandGUI::loadSettings() {
     }
 
     file.close();
-
+    updateControllers();
     backend_handler->audio_handler->setSoundStatus(backend_handler->soundOn);
 
     this->updateBottomToolbar();

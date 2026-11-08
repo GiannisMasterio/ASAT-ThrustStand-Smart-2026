@@ -151,6 +151,7 @@ private:
     void inspect_propeller_logs();
     void tune_controller_window();
     void stopMotor();
+    void updateControllers();
 
     void setupSettingsFields();
     void setupExperimentFields();

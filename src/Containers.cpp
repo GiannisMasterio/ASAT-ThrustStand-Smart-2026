@@ -138,7 +138,7 @@ void Containers::setupControlElements() {
 
 
     QObject::connect(toggle_switch_widget, &QCheckBox::checkStateChanged,
-        backend_handler, &BackendHandler::manualToggleEvent);
+        backend_handler, &BackendHandler::manualToggleBasicMode);
 
     QPushButton* slider_opener_button_widget = new QPushButton("Set Throttle", control_frame);
     slider_opener_button_widget->setFixedSize(150, 36);

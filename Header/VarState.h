@@ -71,6 +71,25 @@ struct CalibrationConfig {
     float gravity = 9.81f;
 };
 
+struct ControllerConfig {
+
+    // Step Controller
+    int throttle_step = INCREASE_THROTTLE_STEP;
+
+    // PID Controller
+    double Kp = 0.5;
+    double Ki = 0.05;
+    double Kd = 0.01;
+    double initial_i_term = 0.0;
+    double clamping_authority = 0.3;
+    int anti_windup_technique = 0; // 0: IntegralClamping, 1: ConditionalIntegration, 2: SimpleTaring
+
+    // ADRC Controller
+    double b0 = 10.0;
+    double wc = 5.0;
+    double wo = 20.0;
+};
+
 struct MqttConfig {
     QString mqtt_receive_topic = DEFAULT_MQTT_RECEIVE_TOPIC;
     QString mqtt_send_topic = DEFAULT_MQTT_SEND_TOPIC;

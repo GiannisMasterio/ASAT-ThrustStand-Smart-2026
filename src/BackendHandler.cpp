@@ -30,13 +30,12 @@ BackendHandler::BackendHandler(QObject* parent, QObject* defaultValue) :
     mqtt_data_timer = new QTimer(this);
     basic_auto_timer = new QTimer(this);
 
-   
     initLogFile();
 
     connect(this, &BackendHandler::mqttSendTopicChanged, this, &BackendHandler::updateMqttSendTopic);
     connect(this, &BackendHandler::publishMqtt, this, &BackendHandler::publishMqttMessage);
     connect(mqtt_data_timer, &QTimer::timeout, this, &BackendHandler::updateMqttData);
-    connect(basic_auto_timer, &QTimer::timeout, this, &BackendHandler::handleMode); // with this handleMode works
+    connect(basic_auto_timer, &QTimer::timeout, this, &BackendHandler::handleAutoMode); // with this handleMode works
         
     mqtt_data_timer->start(MQTT_DELAY);
     start_mqtt();
@@ -45,9 +44,9 @@ BackendHandler::BackendHandler(QObject* parent, QObject* defaultValue) :
 
     audio_handler = new AudioHandler(this);
 
-    step_controller = new StepController(0, 0, cfg.throttle_increase_step);
-    pid_controller = new PidController(Kp, Ki, Kd, integral_term, cfg.min_throttle, cfg.max_throttle);
-    adrc_controller = new ADRCController(b0_val, wc_val, wo_val, min_out, max_out);
+    step_controller = new StepController(0, 0, ctrl_cfg.throttle_step);
+    pid_controller = new PidController(ctrl_cfg.Kp, ctrl_cfg.Ki, ctrl_cfg.Kd, ctrl_cfg.initial_i_term, cfg.min_throttle, cfg.max_throttle);
+    adrc_controller = new ADRCController(ctrl_cfg.b0, ctrl_cfg.wc, ctrl_cfg.wo, cfg.min_throttle, cfg.max_throttle);
     registerController("Step Controller", step_controller);
     registerController("PID Controller", pid_controller);
     registerController("ADRC Controller", adrc_controller);
@@ -475,7 +474,7 @@ void BackendHandler::setSoundStatus(bool sound_status) {
 
 // BASIC MODE FUNCTIONS 
 
-void BackendHandler::manualToggleEvent(int state) {
+void BackendHandler::manualToggleBasicMode(int state) {
 
 	// with these we make the non experiment mode both manual and auto to be able to set the throttle or rpm without running an experiment
 
@@ -505,24 +504,21 @@ void BackendHandler::manualToggleEvent(int state) {
     emit modeChanged(mode);
 } 
 
-void BackendHandler::handleMode() {
+void BackendHandler::handleAutoMode() {
 
-    if (mode == "AUTO") {
+    double dt_sec = (basic_auto_timer && basic_auto_timer->interval() > 0 ? basic_auto_timer->interval() : 100) / 1000.0;
 
-        double dt_sec = (basic_auto_timer && basic_auto_timer->interval() > 0 ? basic_auto_timer->interval() : 100) / 1000.0;
+    double lower_bound = target_rpm - cfg.rpm_clemency;
+    double upper_bound = target_rpm + cfg.rpm_clemency;
 
-        double lower_bound = target_rpm - cfg.rpm_clemency;
-        double upper_bound = target_rpm + cfg.rpm_clemency;
-
-        if (active_controller) {
+    if (active_controller) {
             
             active_controller->set_new_bounds(lower_bound, upper_bound);
             int new_throttle = active_controller->update(target_rpm, tel.rpm, tel.throttle, dt_sec);
             if (new_throttle >= cfg.min_throttle && new_throttle <= cfg.max_throttle) {
                 publishThrottle(new_throttle);
             }
-        }
-    }
+   }
 }
 
 // αυτες οι 2 πρεπει να φυγουνε
