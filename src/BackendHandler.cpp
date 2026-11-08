@@ -36,7 +36,7 @@ BackendHandler::BackendHandler(QObject* parent, QObject* defaultValue) :
     connect(this, &BackendHandler::mqttSendTopicChanged, this, &BackendHandler::updateMqttSendTopic);
     connect(this, &BackendHandler::publishMqtt, this, &BackendHandler::publishMqttMessage);
     connect(mqtt_data_timer, &QTimer::timeout, this, &BackendHandler::updateMqttData);
-    connect(basic_auto_timer, &QTimer::timeout, this, &BackendHandler::handleMode);
+    connect(basic_auto_timer, &QTimer::timeout, this, &BackendHandler::handleMode); // with this handleMode works
         
     mqtt_data_timer->start(MQTT_DELAY);
     start_mqtt();
@@ -63,7 +63,8 @@ QString BackendHandler::get_function_mode() {
     return this->function_mode;
 }
 
-// TELEMETRY
+// TELEMETRY FUNCTIONS
+
 void BackendHandler::updateTelemetry(QMap<QString, double> value_keeper) {
 
     tel.thrust = calibrate_thrust(value_keeper.value("Thrust", tel.thrust)) + cal.thrust_offset;
@@ -105,6 +106,7 @@ void BackendHandler::receiveTelemetry(const QString& data, QString source) {
         }
         updateTelemetry(value_keeper);
     }
+
     else {
         QString cleanData = data.trimmed();
         cleanData.replace("V = ", "V:");
@@ -183,7 +185,6 @@ double BackendHandler::calibrate_thrust(double esp_newton) {
     double new_newton = (new_grams / 1000.0) * cal.gravity;
     return new_newton;
 }
-
 
 // LOGGING FUNCTIONS
 
@@ -475,14 +476,15 @@ void BackendHandler::setSoundStatus(bool sound_status) {
 // BASIC MODE FUNCTIONS 
 
 void BackendHandler::manualToggleEvent(int state) {
-    qDebug() << "Toggle State Changed" << state;
+
+	// with these we make the non experiment mode both manual and auto to be able to set the throttle or rpm without running an experiment
 
     if (state == Qt::Checked) {
         mode = "AUTO";
         qDebug() << "Mode changed to AUTO";
 
-        if (function_mode == "Basic" && !experiment_running) {
-            basic_auto_timer->start();
+        if (function_mode == "Basic" && !experiment_running) { // thelw na mhn afhnei na to treksw an hdh trexw experiment
+            basic_auto_timer->start(); // ξεκιναει το timer
         }
 
         if (slider_opener_button) {
@@ -501,33 +503,29 @@ void BackendHandler::manualToggleEvent(int state) {
     }
 
     emit modeChanged(mode);
-}
+} 
 
 void BackendHandler::handleMode() {
 
     if (mode == "AUTO") {
-        int new_throttle = tel.throttle;
+
+        double dt_sec = (basic_auto_timer && basic_auto_timer->interval() > 0 ? basic_auto_timer->interval() : 100) / 1000.0;
 
         double lower_bound = target_rpm - cfg.rpm_clemency;
         double upper_bound = target_rpm + cfg.rpm_clemency;
 
-        /*
-        active_controller->set_new_bounds(lower_bound, upper_bound);
-	    active_controller->update(tel.rpm, target_rpm, tel.throttle, dt); */
-
-        if (tel.rpm < lower_bound) {
-            new_throttle = tel.throttle + cfg.throttle_increase_step;
-        }
-        else if (tel.rpm > upper_bound) {
-            new_throttle = tel.throttle - cfg.throttle_increase_step;
-        }
-
-        if (new_throttle >= cfg.min_throttle && new_throttle <= cfg.max_throttle) {
-            publishThrottle(new_throttle);
+        if (active_controller) {
+            
+            active_controller->set_new_bounds(lower_bound, upper_bound);
+            int new_throttle = active_controller->update(target_rpm, tel.rpm, tel.throttle, dt_sec);
+            if (new_throttle >= cfg.min_throttle && new_throttle <= cfg.max_throttle) {
+                publishThrottle(new_throttle);
+            }
         }
     }
 }
 
+// αυτες οι 2 πρεπει να φυγουνε
 void BackendHandler::createSliderWindow() {
     if (slider_window) {
         slider_window->raise();
@@ -699,6 +697,9 @@ void BackendHandler::updateSliderValue(int sliderValue) {
         }
     }
 }
+
+// -------------------------------------------------------
+
 
 double BackendHandler::getThrottlePercentage(int current_throttle) {
 

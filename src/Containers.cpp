@@ -204,31 +204,27 @@ void Containers::checkBoundsAndSetColor(double currentValue)
 
 void Containers::updateData(double newValue) {
 
-    QString displayValue;
     value = newValue;
 
-    backend_handler->handleMode();
-    backend_handler->setValue(newValue);
+    double shown = value;
+    if (quantity == "Throttle") shown = backend_handler->getThrottlePercentage(static_cast<int>(value));
 
-    if (graphic) {
-        graphic->setValue(quantity == "Throttle" ? qMax(0.0, backend_handler->getThrottlePercentage(backend_handler->tel.throttle)) : value);
+	if (graphic) { // Αν υπάρχει γραφικό, ενημερώνουμε μόνο αυτό και επιστρέφουμε
+        graphic->setValue(shown);
         return;
     }
 
-    double shown = value;
-    if (quantity == "Throttle") shown = backend_handler->getThrottlePercentage((int)value);
+	if (value_label) value_label->setText(formatValueText(shown)); // Ενημερώνουμε το κείμενο της τιμής αν εχουμε
 
-    value_label->setText(formatValueText(shown));
+	if (has_bar && progress_bar) { //   Ενημερώνουμε την μπάρα προόδου αν υπάρχει
 
-
-    if (has_bar && progress_bar) {
         double displayProgress = value;
 
         if (quantity == "Voltage") {
-            double minV = low_bound;
-            double maxV = value_limit.value(quantity);
+            double minValue = low_bound;
+            double maxValue = value_limit.value(quantity);
 
-            displayProgress = ((value - minV) / (maxV - minV)) * maxV;
+            displayProgress = ((value - minValue) / (maxValue - minValue)) * maxValue;
         }
 
         if (displayProgress >= value_limit.value(quantity))
