@@ -35,13 +35,13 @@ constexpr const char* LOGGING_ON_ICONPATH = "./assets/LogOn.png";
 constexpr const char* LOGGING_OFF_ICONPATH = "./assets/LogOff.png";
 constexpr const char* CONTROLLER_TUNING_ICONPATH = "./assets/ControllerTuningIcon.png";
 
-constexpr const char* DEFAULT_MQTT_BROKER = "127.0.0.1"; 
+constexpr const char* DEFAULT_MQTT_BROKER = "127.0.0.1";
 constexpr const char* DEFAULT_MQTT_SEND_TOPIC = "thrust-toesp";
 constexpr const char* DEFAULT_MQTT_RECEIVE_TOPIC = "thrust-fromesp";
 
 constexpr double DEFAULT_AOA = 0;
 constexpr double DEFAULT_AIRSPEED = 0;
-constexpr int DEFAULT_MQTT_PORT = 1883; 
+constexpr int DEFAULT_MQTT_PORT = 1883;
 constexpr int MQTT_DELAY = 10; // ms
 constexpr int GRAPHIC_UPDATES_REFRESH_RATE = 80; // den exei nohma na einai mikrotero apo to mqtt delay
 
@@ -52,7 +52,7 @@ constexpr unsigned int MAX_RPM = 10000;
 constexpr int RPM_CLEMENCY = 40;
 constexpr int RPM_STEP = 1000;
 constexpr int THRUST_CLEMENCY = 3;
-constexpr int THRUST_WAIT_TIME = 5; 
+constexpr int THRUST_WAIT_TIME = 5;
 const int RECORD_DATA_WAIT_TIME_MS = 10000;
 const int TRANSITION_DELAY_TIME_MS = 5000;
 const int THRUST_STAB_WAIT_TIME_MS = 3000;
@@ -77,47 +77,47 @@ constexpr const char* DARK_GRAY = "gray40";
 constexpr int AUTO_MODE_TIMER_INTERVAL_MS = GRAPHIC_UPDATES_REFRESH_RATE; // i set that same to graphic updates timer 
 
 const QMap<QString, QVector<QString>> progress_bar_colors_map = {
-    {"Voltage",  {"red", "orange",SELECTED_GREEN}},
-    {"Current",  {SELECTED_GREEN, "orange","red"}},
-    {"Thrust",   {"red", "orange", SELECTED_GREEN}},
-    {"RPM",      {"red", "orange", SELECTED_GREEN}},
-    {"Throttle", {"red", "orange",SELECTED_GREEN}},
-    {"Torque", {"red", "orange",SELECTED_GREEN}}
+    { "Voltage",{ "red", "orange",SELECTED_GREEN } },
+    { "Current",{ SELECTED_GREEN, "orange","red" } },
+    { "Thrust",{ "red", "orange", SELECTED_GREEN } },
+    { "RPM",{ "red", "orange", SELECTED_GREEN } },
+    { "Throttle",{ "red", "orange",SELECTED_GREEN } },
+    { "Torque",{ "red", "orange",SELECTED_GREEN } }
 };
 
 const QMap<QString, QPair<double, double>> bounds_map = {
-    {"Voltage", {9.5, 12.6}},
-    {"Current", {12.0, 20.0}},
-    {"Thrust", {5.0, 10.0}},
-    {"RPM", {3000.0, 8000.0}},
-    {"Throttle", {4.0, 12.0}}
+    { "Voltage",{ 9.5, 12.6 } },
+    { "Current",{ 12.0, 20.0 } },
+    { "Thrust",{ 5.0, 10.0 } },
+    { "RPM",{ 3000.0, 8000.0 } },
+    { "Throttle",{ 4.0, 12.0 } }
 };
 
 const QMap<QString, QString> units_map = {
-    {"Instant RPM", "rpm"},
-    {"Instant Throttle", "%"},
-    {"Instant Voltage", "V"},
-    {"Instant Current", "A"},
-    {"Instant Thrust", "N"},
-    {"Instant Power", "W"},
-    {"Instant Torque", "N*m"},
+    { "Instant RPM", "rpm" },
+    { "Instant Throttle", "%" },
+    { "Instant Voltage", "V" },
+    { "Instant Current", "A" },
+    { "Instant Thrust", "N" },
+    { "Instant Power", "W" },
+    { "Instant Torque", "N*m" },
 };
 
 const QMap<QString, QString> actual_quantity = {
-    {"Instant RPM", "RPM"},
-    {"Instant Throttle", "Throttle"},
-    {"Instant Voltage", "Voltage"},
-    {"Instant Current", "Current"},
-    {"Instant Thrust", "Thrust"},
-    {"Instant Torque", "Torque"}
+    { "Instant RPM", "RPM" },
+    { "Instant Throttle", "Throttle" },
+    { "Instant Voltage", "Voltage" },
+    { "Instant Current", "Current" },
+    { "Instant Thrust", "Thrust" },
+    { "Instant Torque", "Torque" }
 };
 
 const QMap<QString, double> value_limit = {
-    {"RPM", 10.0},
-    {"Throttle", 100.0},
-    {"Voltage", 13.4},
-    {"Current", 35.0},
-    {"Thrust", 20.0} 
+    { "RPM", 10.0 },
+    { "Throttle", 100.0 },
+    { "Voltage", 13.4 },
+    { "Current", 35.0 },
+    { "Thrust", 20.0 }
 };
 
 inline const QString DIALOG_STYLE = QString::fromUtf8(R"(

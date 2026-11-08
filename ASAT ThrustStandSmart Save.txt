@@ -1,0 +1,22 @@
+
+Last Save Settings Session: 09/11/2026 00:02:58
+Data Source                    : MQTT
+Receive Topic (Subscription)   : thrust-fromesp
+Send Topic (Publishing)        : thrust-toesp
+Propeller Name                 : 12x6
+Angle Of Attack (deg)          : 0.00
+Airspeed (m/sec)               : 0.00
+Min Throttle (us)              : 1130
+Max Throttle (us)              : 2000
+Max RPM                        : 10000
+RPM Clemency                   : 40
+RPM Step                       : 1000
+Thrust Stabilizing WaitTime (ms) : 3000
+Wait After Thrust (ms)         : 10000
+Current Limit (A)              : 40.00
+Thrust Offset (N)              : 0.00
+Current Offset (A)             : 0.00
+Sound                          : Yes
+Log Only On Experiment         : No
+RPM Filter                     : No
+------------------------------------------------

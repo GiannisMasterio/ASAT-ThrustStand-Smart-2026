@@ -31,6 +31,7 @@ ThrustStandGUI::~ThrustStandGUI()
     on_closing();
 }
 
+// SYSTEM
 void ThrustStandGUI::keyPressEvent(QKeyEvent* event)
 {
     if (event->key() == Qt::Key_F11) {
@@ -74,172 +75,241 @@ void ThrustStandGUI::on_closing() {
     backend_handler->disconnect_mqtt();
 }
 
-QFrame* ThrustStandGUI::createBottomToolbar() {
-    QFrame* toolbarFrame = new QFrame();
-    toolbarFrame->setObjectName("BottomToolbar");
-    toolbarFrame->setFixedHeight(100);
-    toolbarFrame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    toolbarFrame->setStyleSheet(
-        "QFrame#BottomToolbar {"
-        "   background-color: rgba(8, 14, 28, 230);"
-        "   border-top: 1px solid rgba(255, 255, 255, 40);"
-        "   border-bottom: none; border-left: none; border-right: none;"
-        "}"
-    );
+// INTERFACE
 
-    QHBoxLayout* toolbarLayout = new QHBoxLayout(toolbarFrame);
-    toolbarLayout->setContentsMargins(20, 0, 20, 0);
-    toolbarLayout->setSpacing(10);
+void ThrustStandGUI::createMainScene() {
+    graphic_timer->stop();
 
-    int clickVol = backend_handler->audio_click_sfx_volume;
+    auto& cfg = backend_handler->cfg;
+    auto& mqttcfg = backend_handler->mqttcfg;
+    auto& tel = backend_handler->tel;
+    auto& cal = backend_handler->cal;
 
-    auto createIcon = [&](const QString& iconPath, IconType type) {
-        QPushButton* btn = new QPushButton();
-        btn->setFixedSize(90, 90);
-        btn->setIcon(QIcon(iconPath));
-        btn->setIconSize(QSize(70, 70));
-        btn->setCursor(Qt::PointingHandCursor);
-        btn->setStyleSheet(
-            "QPushButton { background: transparent; border: none; border-radius: 18px; }"
-            "QPushButton:hover { background-color: rgba(255, 255, 255, 28); }"
-            "QPushButton:pressed { background-color: rgba(255, 255, 255, 50); }"
-        );
+    if (centralWidget()) {
+        firstIconButton = nullptr;
+        secondIconButton = nullptr;
+        thirdIconButton = nullptr;
+        statusIconButton = nullptr;
+        saveIconButton = nullptr;
+        loggingIconButton = nullptr;
+        delete centralWidget();
+    }
 
-        switch (type) {
-        case Mode:
-            firstIconButton = btn;
-            QObject::connect(btn, &QPushButton::clicked, this, [this]() {
-                backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
-                this->changeFunctionMode();
-                });
-            break;
-        case Scene:
-            secondIconButton = btn;
-            QObject::connect(btn, &QPushButton::clicked, this, [this]() {
-                backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
-                this->changeScene();
-                });
-            break;
-        case EscapeExperiment:
-            thirdIconButton = btn;
-            QObject::connect(btn, &QPushButton::clicked, this, [this]() {
-                backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
-                this->escapeExperiment();
-                });
-            break;
-        case Settings:
-            QObject::connect(btn, &QPushButton::clicked, this, [this]() {
-                backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
-                this->chooseSettings();
-                });
-            break;
-        case Calibration:
-            QObject::connect(btn, &QPushButton::clicked, this, [this]() {
-                backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
-                this->calibrate_parameters();
-                });
-            break;
-        case Propeller:
-            QObject::connect(btn, &QPushButton::clicked, this, [this]() {
-                backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
-                this->inspect_propeller_logs();
-                });
-            break;
-        case Logging:
-            loggingIconButton = btn;
-            QObject::connect(btn, &QPushButton::clicked, this, [this]() {
-                this->updateBottomToolbar();
-                });
-            break;
-        case Tuning:
-            controllerTuningIconButton = btn;
-            QObject::connect(btn, &QPushButton::clicked, this, [this]() {
-                backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
-                this->tune_controller();
-                });
-            break;
-        case StopMotor:
-            stopMotorIconButton = btn;
-            QObject::connect(btn, &QPushButton::clicked, this, [this]() {
-                backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
-                this->stopMotor();
-                });
-            break;
-        case Status:
-            statusIconButton = btn;
-            break;
-        case Save:
-            saveIconButton = btn;
-            QObject::connect(btn, &QPushButton::clicked, this, [this]() {
-                if (backend_handler->unsaved_settings_changes) {
-                    backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
-                    this->saveSettings();
-                }
-                });
-            break;
-        }
+    QWidget* centralWidget = new QWidget(this);
+    centralWidget->setObjectName("CentralWidget");
+    setCentralWidget(centralWidget);
 
-        return btn;
-        };
+    QString backgroundStyle = QString(
+        "QWidget#CentralWidget {" "background-image: url(%1);"
+        "background-position: center;""background-repeat: no-repeat;"
+        "}").arg(MAINSCENE_BG);
+    centralWidget->setStyleSheet(backgroundStyle);
 
-    toolbarLayout->addWidget(createIcon(first_icon_path, Mode));
-    toolbarLayout->addWidget(createIcon(second_icon_path, Scene));
-    toolbarLayout->addWidget(createIcon(third_icon_path, EscapeExperiment));
-    toolbarLayout->addWidget(createIcon(controller_tuning_icon_path, Tuning));
-    toolbarLayout->addWidget(createIcon(CALIBRATIONICONPATH, Calibration));
-    toolbarLayout->addWidget(createIcon(PROPELLERICONPATH, Propeller));
-    toolbarLayout->addWidget(createIcon(stop_motor_icon_path, StopMotor));
-    toolbarLayout->addWidget(createIcon(status_icon_path, Status));
-    toolbarLayout->addWidget(createIcon(logging_icon_path, Logging));
+    QVBoxLayout* mainVLayout = new QVBoxLayout(centralWidget);
+    mainVLayout->setContentsMargins(0, 0, 0, 0);
+    mainVLayout->setSpacing(0);
 
-    toolbarLayout->addStretch(2);
+    QWidget* topSection = new QWidget(centralWidget);
+    topSection->setStyleSheet("background: transparent;");
 
-    auto createBottomButton = [&](const QString& text, std::function<void()> callback) {
-        QPushButton* btn = new QPushButton(text);
-        btn->setFixedSize(text == "Choose Log Location" ? 290 : 250, 56);
-        btn->setCursor(Qt::PointingHandCursor);
-        btn->setStyleSheet(QString(
-            "QPushButton {"
-            "   background-color: rgba(255, 255, 255, 12);"
-            "   color: #e2e8f0;"
-            "   border: 1px solid rgba(255, 255, 255, 70);"
-            "   border-radius: 28px;"
-            "   font-family: 'Segoe UI'; font-size: 20px; font-weight: 600;"
-            "}"
-            "QPushButton:hover { background-color: rgba(30, 144, 255, 60); border-color: %1; color: white; }"
-            "QPushButton:pressed { background-color: rgba(30, 144, 255, 110); }"
-        ).arg(THEME_COLOR));
-        QObject::connect(btn, &QPushButton::clicked, this, [this, callback]() {
-            backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
-            callback();
-            });
-        return btn;
-        };
+    QGridLayout* gridLayout = new QGridLayout(topSection);
+    gridLayout->setContentsMargins(50, 35, 50, 20);
+    gridLayout->setSpacing(20);
 
-    toolbarLayout->addWidget(createBottomButton("Open Log File", [this]() { backend_handler->openLogFile(); }));
-    toolbarLayout->addWidget(createBottomButton("Choose Log Location", [this]() { backend_handler->chooseLogLocation(); }));
-    toolbarLayout->addWidget(createBottomButton("Serial Control", [this]() { this->serial_control(); }));
-    toolbarLayout->addWidget(createIcon(save_icon_path, Save));
-    toolbarLayout->addWidget(createIcon(SETTINGSICONPATH, Settings));
+    const int TITLE_SIZE = 36;
 
-    return toolbarFrame;
-}
+    instantthrustGUI = new Containers("Instant Thrust", TITLE_SIZE, "white", tel.thrust, true, backend_handler, topSection);
+    instantcurrentGUI = new Containers("Instant Current", TITLE_SIZE, "white", tel.current, true, backend_handler, topSection);
+    instanttorqueGUI = new Containers("Instant Torque", TITLE_SIZE, "white", tel.torque, false, backend_handler, topSection);
+    instantrpmGUI = new Containers("Instant RPM", TITLE_SIZE, "white", tel.rpm, false, backend_handler, topSection);
+    instantthrottleGUI = new Containers("Instant Throttle", TITLE_SIZE, "white", (double)tel.throttle, false, backend_handler, topSection);
+    instantpowerGUI = new Containers("Instant Power", TITLE_SIZE, "white", tel.power, false, backend_handler, topSection);
+    batteryWidget = new BatteryWidget("Instant Voltage", true, topSection, tel.voltage);
 
-void ThrustStandGUI::stopMotor() {
-    backend_handler->executeEmergencyStop();
-}
+    double minV = bounds_map.value("Voltage").first;
+    double maxV = bounds_map.value("Voltage").second;
+    int initial_battery_pct = std::clamp((int)((tel.voltage - minV) / (maxV - minV) * 100), 0, 100);
+    batteryWidget->setPercentage(initial_battery_pct);
 
-void ThrustStandGUI::escapeExperiment() {
-    if (backend_handler->experiment_running) {
-        if (backend_handler->auto_mode_timer) {
-            backend_handler->auto_mode_timer->stop();
-        }
-        onExperimentFinished();
-        backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "ExperimentCancelled");
+    gridLayout->addWidget(instantthrustGUI, 0, 0);
+    gridLayout->addWidget(instanttorqueGUI, 0, 2);
+
+    gridLayout->addWidget(instantcurrentGUI, 1, 0);
+    gridLayout->addWidget(instantpowerGUI, 1, 2);
+
+    gridLayout->addWidget(instantthrottleGUI, 2, 0);
+    gridLayout->addWidget(instantrpmGUI, 2, 2);
+
+    gridLayout->addWidget(batteryWidget, 0, 1, 3, 1);
+
+    gridLayout->setColumnStretch(0, 3);
+    gridLayout->setColumnStretch(1, 2);
+    gridLayout->setColumnStretch(2, 3);
+
+    gridLayout->setRowStretch(0, 1);
+    gridLayout->setRowStretch(1, 1);
+    gridLayout->setRowStretch(2, 1);
+
+    mainVLayout->addWidget(topSection, 1);
+
+    QFrame* bottomBar = createBottomToolbar();
+    mainVLayout->addWidget(bottomBar);
+
+    this->updateBottomToolbar();
+
+    graphic_timer->start(GRAPHIC_UPDATES_REFRESH_RATE);
+
+    if (backend_handler->get_function_mode() == "Experiment" && !backend_handler->experiment_running) {
+        customizeExperiment();
     }
 }
 
-void ThrustStandGUI::calibrate_parameters() {
+void ThrustStandGUI::createGraphScene() {
+    QWidget* centralWidget = new QWidget(this);
+    centralWidget->setObjectName("CentralWidget");
+    setCentralWidget(centralWidget);
+
+    QString backgroundStyle = QString(
+        "QWidget#CentralWidget {"
+        "background-image: url(%1);"
+        "background-position: center;"
+        "background-repeat: no-repeat;"
+        "}").arg(MAINSCENE_BG);
+    centralWidget->setStyleSheet(backgroundStyle);
+
+    QVBoxLayout* mainVLayout = new QVBoxLayout(centralWidget);
+    mainVLayout->setContentsMargins(0, 0, 0, 0);
+    mainVLayout->setSpacing(0);
+
+    QWidget* chartsArea = new QWidget(centralWidget);
+    chartsArea->setStyleSheet("background: transparent;");
+
+    QGridLayout* chartsGrid = new QGridLayout(chartsArea);
+    chartsGrid->setContentsMargins(40, 30, 40, 20);
+    chartsGrid->setSpacing(24);
+
+    voltageGraph = new GraphContainer("Instant Voltage", "V", chartsArea);
+    currentGraph = new GraphContainer("Instant Current", "A", chartsArea);
+    powerGraph = new GraphContainer("Instant Power", "W", chartsArea);
+    thrustGraph = new GraphContainer("Instant Thrust", "N", chartsArea);
+    throttleGraph = new GraphContainer("Instant Throttle", "%", chartsArea);
+    rpmGraph = new GraphContainer("Instant RPM", "rpm", chartsArea);
+
+    voltageGraph->setFullData(timeHistory, voltageHistory);
+    currentGraph->setFullData(timeHistory, currentHistory);
+    powerGraph->setFullData(timeHistory, powerHistory);
+    thrustGraph->setFullData(timeHistory, thrustHistory);
+    throttleGraph->setFullData(timeHistory, throttleHistory);
+    rpmGraph->setFullData(timeHistory, rpmHistory);
+
+    chartsGrid->addWidget(voltageGraph, 0, 0);
+    chartsGrid->addWidget(currentGraph, 1, 0);
+    chartsGrid->addWidget(powerGraph, 2, 0);
+    chartsGrid->addWidget(thrustGraph, 0, 1);
+    chartsGrid->addWidget(throttleGraph, 1, 1);
+    chartsGrid->addWidget(rpmGraph, 2, 1);
+
+    for (int r = 0; r < 3; ++r) chartsGrid->setRowStretch(r, 1);
+    chartsGrid->setColumnStretch(0, 1);
+    chartsGrid->setColumnStretch(1, 1);
+
+    mainVLayout->addWidget(chartsArea, 1);
+
+    QFrame* bottomBar = createBottomToolbar();
+    mainVLayout->addWidget(bottomBar);
+
+    if (graphic_timer && !graphic_timer->isActive()) {
+        graphic_timer->start(GRAPHIC_UPDATES_REFRESH_RATE);
+    }
+}
+
+void ThrustStandGUI::changeScene() {
+    if (lastSceneChange.isValid() && lastSceneChange.elapsed() < 100) {
+        return;
+    }
+    lastSceneChange.start();
+
+    if (graphic_timer) graphic_timer->stop();
+
+    if (current_scene == "MAIN") {
+        current_scene = "GRAPH";
+        this->createGraphScene();
+
+        instantthrustGUI = nullptr;
+        instantcurrentGUI = nullptr;
+        instanttorqueGUI = nullptr;
+        instantrpmGUI = nullptr;
+        instantthrottleGUI = nullptr;
+        instantpowerGUI = nullptr;
+    }
+    else if (current_scene == "GRAPH") {
+        current_scene = "MAIN";
+        this->createMainScene();
+
+        voltageGraph = nullptr;
+        currentGraph = nullptr;
+        powerGraph = nullptr;
+        thrustGraph = nullptr;
+        throttleGraph = nullptr;
+        rpmGraph = nullptr;
+    }
+
+    this->updateBottomToolbar();
+}
+
+void ThrustStandGUI::graphicUpdates() {
+    if (!backend_handler->process_begin) return;
+
+    const auto& tel = backend_handler->tel;
+
+    double currentTime = graphtimeCounter + ((double)GRAPHIC_UPDATES_REFRESH_RATE / 1000.0);
+    graphtimeCounter = currentTime;
+
+    auto appendData = [&](QVector<double>& buffer, double value) {
+        buffer.append(value); if (buffer.size() > MAX_POINTS) buffer.removeFirst(); };
+
+    timeHistory.append(currentTime);
+    if (timeHistory.size() > MAX_POINTS) timeHistory.removeFirst();
+
+    double throttle_percentage = backend_handler->getThrottlePercentage(tel.throttle);
+
+    appendData(thrustHistory, tel.thrust);
+    appendData(rpmHistory, tel.rpm);
+    appendData(voltageHistory, tel.voltage);
+    appendData(currentHistory, tel.current);
+    appendData(powerHistory, tel.power);
+    appendData(throttleHistory, throttle_percentage);
+
+    if (current_scene == "MAIN" && instantthrustGUI != nullptr) {
+        instantthrustGUI->updateData(tel.thrust);
+        instantcurrentGUI->updateData(tel.current);
+        instanttorqueGUI->updateData(tel.torque);
+        instantthrottleGUI->updateData((double)tel.throttle);
+        instantrpmGUI->updateData(tel.rpm);
+        instantpowerGUI->updateData(tel.power);
+
+        if (batteryWidget) {
+            double minV = bounds_map.value("Voltage").first;
+            double maxV = bounds_map.value("Voltage").second;
+
+            int pct = 0;
+            pct = std::clamp((int)((tel.voltage - minV) / (maxV - minV) * 100.0), 0, 100);
+            batteryWidget->setPercentage(pct);
+            batteryWidget->setVoltage(tel.voltage);
+        }
+
+    }
+    else if (current_scene == "GRAPH" && thrustGraph != nullptr) {
+        thrustGraph->addDataPoint(graphtimeCounter, tel.thrust);
+        rpmGraph->addDataPoint(graphtimeCounter, tel.rpm);
+        voltageGraph->addDataPoint(graphtimeCounter, tel.voltage);
+        currentGraph->addDataPoint(graphtimeCounter, tel.current);
+        powerGraph->addDataPoint(graphtimeCounter, tel.power);
+        throttleGraph->addDataPoint(graphtimeCounter, throttle_percentage);
+    }
+}
+
+void ThrustStandGUI::calibrate_parameters_window() {
     auto& cal = backend_handler->cal;
 
     QWidget* cal_window = new QWidget(nullptr, Qt::Window);
@@ -406,7 +476,7 @@ void ThrustStandGUI::calibrate_parameters() {
     cal_window->show();
 }
 
-void ThrustStandGUI::tune_controller() {
+void ThrustStandGUI::tune_controller_window() {
     QWidget* tune_controller_window = new QWidget(nullptr, Qt::Window);
     tune_controller_window->setObjectName("ModernDialog");
     tune_controller_window->setWindowTitle("Controller Tuning");
@@ -545,6 +615,222 @@ void ThrustStandGUI::tune_controller() {
         });
 
     tune_controller_window->show();
+}
+
+QFrame* ThrustStandGUI::createBottomToolbar() {
+    QFrame* toolbarFrame = new QFrame();
+    toolbarFrame->setObjectName("BottomToolbar");
+    toolbarFrame->setFixedHeight(100);
+    toolbarFrame->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    toolbarFrame->setStyleSheet(
+        "QFrame#BottomToolbar {"
+        "   background-color: rgba(8, 14, 28, 230);"
+        "   border-top: 1px solid rgba(255, 255, 255, 40);"
+        "   border-bottom: none; border-left: none; border-right: none;"
+        "}"
+    );
+
+    QHBoxLayout* toolbarLayout = new QHBoxLayout(toolbarFrame);
+    toolbarLayout->setContentsMargins(20, 0, 20, 0);
+    toolbarLayout->setSpacing(10);
+
+    int clickVol = backend_handler->audio_click_sfx_volume;
+
+    auto createIcon = [&](const QString& iconPath, IconType type) {
+        QPushButton* btn = new QPushButton();
+        btn->setFixedSize(90, 90);
+        btn->setIcon(QIcon(iconPath));
+        btn->setIconSize(QSize(70, 70));
+        btn->setCursor(Qt::PointingHandCursor);
+        btn->setStyleSheet(
+            "QPushButton { background: transparent; border: none; border-radius: 18px; }"
+            "QPushButton:hover { background-color: rgba(255, 255, 255, 28); }"
+            "QPushButton:pressed { background-color: rgba(255, 255, 255, 50); }"
+        );
+
+        switch (type) {
+        case Mode:
+            firstIconButton = btn;
+            QObject::connect(btn, &QPushButton::clicked, this, [this]() {
+                backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
+                this->changeFunctionMode();
+                });
+            break;
+        case Scene:
+            secondIconButton = btn;
+            QObject::connect(btn, &QPushButton::clicked, this, [this]() {
+                backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
+                this->changeScene();
+                });
+            break;
+        case EscapeExperiment:
+            thirdIconButton = btn;
+            QObject::connect(btn, &QPushButton::clicked, this, [this]() {
+                backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
+                this->escapeExperiment();
+                });
+            break;
+        case Settings:
+            QObject::connect(btn, &QPushButton::clicked, this, [this]() {
+                backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
+                this->chooseSettings();
+                });
+            break;
+        case Calibration:
+            QObject::connect(btn, &QPushButton::clicked, this, [this]() {
+                backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
+                this->calibrate_parameters_window();
+                }); 
+            break;
+        case Propeller:
+            QObject::connect(btn, &QPushButton::clicked, this, [this]() {
+                backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
+                this->inspect_propeller_logs();
+                });
+            break;
+        case Logging:
+            loggingIconButton = btn;
+            QObject::connect(btn, &QPushButton::clicked, this, [this]() {
+                this->updateBottomToolbar();
+                });
+            break;
+        case Tuning:
+            controllerTuningIconButton = btn;
+            QObject::connect(btn, &QPushButton::clicked, this, [this]() {
+                backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
+                this->tune_controller_window();
+                });
+            break;
+        case StopMotor:
+            stopMotorIconButton = btn;
+            QObject::connect(btn, &QPushButton::clicked, this, [this]() {
+                backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
+                this->stopMotor();
+                });
+            break;
+        case Status:
+            statusIconButton = btn;
+            break;
+        case Save:
+            saveIconButton = btn;
+            QObject::connect(btn, &QPushButton::clicked, this, [this]() {
+                if (backend_handler->unsaved_settings_changes) {
+                    backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
+                    this->saveSettings();
+                }
+                });
+            break;
+        }
+
+        return btn;
+        };
+
+    toolbarLayout->addWidget(createIcon(first_icon_path, Mode));
+    toolbarLayout->addWidget(createIcon(second_icon_path, Scene));
+    toolbarLayout->addWidget(createIcon(third_icon_path, EscapeExperiment));
+    toolbarLayout->addWidget(createIcon(controller_tuning_icon_path, Tuning));
+    toolbarLayout->addWidget(createIcon(CALIBRATIONICONPATH, Calibration));
+    toolbarLayout->addWidget(createIcon(PROPELLERICONPATH, Propeller));
+    toolbarLayout->addWidget(createIcon(stop_motor_icon_path, StopMotor));
+    toolbarLayout->addWidget(createIcon(status_icon_path, Status));
+    toolbarLayout->addWidget(createIcon(logging_icon_path, Logging));
+
+    toolbarLayout->addStretch(2);
+
+    auto createBottomButton = [&](const QString& text, std::function<void()> callback) {
+        QPushButton* btn = new QPushButton(text);
+        btn->setFixedHeight(52);
+        btn->setMinimumWidth(150);
+        btn->setMaximumWidth(text == "Choose Log Location" ? 290 : 250);
+        btn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        btn->setCursor(Qt::PointingHandCursor);
+        btn->setStyleSheet(QString(
+            "QPushButton {"
+            "   background-color: rgba(255, 255, 255, 12);"
+            "   color: #e2e8f0;"
+            "   border: 1px solid rgba(255, 255, 255, 70);"
+            "   border-radius: 26px;"
+            "   padding: 0 14px;"
+            "   font-family: 'Segoe UI'; font-size: 18px; font-weight: 600;"
+            "}"
+            "QPushButton:hover { background-color: rgba(30, 144, 255, 60); border-color: %1; color: white; }"
+            "QPushButton:pressed { background-color: rgba(30, 144, 255, 110); }"
+        ).arg(THEME_COLOR));
+        QObject::connect(btn, &QPushButton::clicked, this, [this, callback]() {
+            backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
+            callback();
+            });
+        return btn;
+        };
+
+    toolbarLayout->addWidget(createBottomButton("Open Log File", [this]() { backend_handler->openLogFile(); }));
+    toolbarLayout->addWidget(createBottomButton("Choose Log Location", [this]() { backend_handler->chooseLogLocation(); }));
+    toolbarLayout->addWidget(createBottomButton("Serial Control", [this]() { this->serial_control(); }));
+    toolbarLayout->addWidget(createIcon(save_icon_path, Save));
+    toolbarLayout->addWidget(createIcon(SETTINGSICONPATH, Settings));
+
+    return toolbarFrame;
+}
+
+void ThrustStandGUI::updateBottomToolbar() {
+    if (current_scene == "GRAPH") second_icon_path = HOMEICONPATH;
+    else second_icon_path = GRAPHICONPATH;
+
+    if (backend_handler->experiment_running) third_icon_path = EXPERIMENT_RUNNING_ICONPATH;
+    else third_icon_path = EXPERIMENT_NOT_RUNNING_ICONPATH;
+
+    if (backend_handler->is_armed) status_icon_path = ARMED_ICONPATH;
+    else status_icon_path = DISARMED_ICONPATH;
+
+    if (backend_handler->unsaved_settings_changes) save_icon_path = SAVEICONPATH;
+    else save_icon_path = SAVEICON_LOW_OPACITY_PATH;
+
+    if (backend_handler->write_logs) logging_icon_path = LOGGING_ON_ICONPATH;
+    else logging_icon_path = LOGGING_OFF_ICONPATH;
+
+    if (firstIconButton) {
+        first_icon_path = (backend_handler->get_function_mode() == "Basic") ? BASIC_MODE_ICONPATH : EXPERIMENT_MODE_ICONPATH;
+        firstIconButton->setIcon(QIcon(first_icon_path));
+    }
+    if (secondIconButton) secondIconButton->setIcon(QIcon(second_icon_path));
+    if (thirdIconButton) thirdIconButton->setIcon(QIcon(third_icon_path));
+    if (statusIconButton) statusIconButton->setIcon(QIcon(status_icon_path));
+    if (saveIconButton) saveIconButton->setIcon(QIcon(save_icon_path));
+    if (loggingIconButton) loggingIconButton->setIcon(QIcon(logging_icon_path));
+}
+
+void ThrustStandGUI::changeFunctionMode() {
+    QString function_mode = backend_handler->get_function_mode();
+    if (lastFunctionModeChange.isValid() && lastFunctionModeChange.elapsed() < 100) {
+        return;
+    }
+    lastFunctionModeChange.start();
+
+    if (current_scene != "GRAPH") {
+        function_mode = (function_mode == "Basic") ? "Experiment" : "Basic";
+        backend_handler->set_function_mode(function_mode);
+        this->updateBottomToolbar();
+        this->createMainScene();
+    }
+    else {
+        backend_handler->playAudio(100, "ChangeToHomeFirst");
+    }
+}
+
+// EXPERIMENT
+
+void ThrustStandGUI::stopMotor() {
+    backend_handler->executeEmergencyStop();
+}
+
+void ThrustStandGUI::escapeExperiment() {
+    if (backend_handler->experiment_running) {
+        if (backend_handler->auto_mode_timer) {
+            backend_handler->auto_mode_timer->stop();
+        }
+        onExperimentFinished();
+        backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "ExperimentCancelled");
+    }
 }
 
 /*
@@ -778,33 +1064,6 @@ void ThrustStandGUI::inspect_propeller_logs() {
     propWindow->show();
 } 
 
-void ThrustStandGUI::updateBottomToolbar() {
-    if (current_scene == "GRAPH") second_icon_path = HOMEICONPATH;
-    else second_icon_path = GRAPHICONPATH;
-
-    if (backend_handler->experiment_running) third_icon_path = EXPERIMENT_RUNNING_ICONPATH;
-    else third_icon_path = EXPERIMENT_NOT_RUNNING_ICONPATH;
-
-    if (backend_handler->is_armed) status_icon_path = ARMED_ICONPATH;
-    else status_icon_path = DISARMED_ICONPATH;
-
-    if (backend_handler->unsaved_settings_changes) save_icon_path = SAVEICONPATH;
-    else save_icon_path = SAVEICON_LOW_OPACITY_PATH;
-
-    if (backend_handler->write_logs) logging_icon_path = LOGGING_ON_ICONPATH;
-    else logging_icon_path = LOGGING_OFF_ICONPATH;
-
-    if (firstIconButton) {
-        first_icon_path = (backend_handler->get_function_mode() == "Basic") ? BASIC_MODE_ICONPATH : EXPERIMENT_MODE_ICONPATH;
-        firstIconButton->setIcon(QIcon(first_icon_path));
-    }
-    if (secondIconButton) secondIconButton->setIcon(QIcon(second_icon_path));
-    if (thirdIconButton) thirdIconButton->setIcon(QIcon(third_icon_path));
-    if (statusIconButton) statusIconButton->setIcon(QIcon(status_icon_path));
-    if (saveIconButton) saveIconButton->setIcon(QIcon(save_icon_path));
-    if (loggingIconButton) loggingIconButton->setIcon(QIcon(logging_icon_path));
-}
-
 void ThrustStandGUI::updateArmedState(bool new_arm_status) {
 
     backend_handler->is_armed = new_arm_status;
@@ -823,258 +1082,8 @@ void ThrustStandGUI::updateArmedState(bool new_arm_status) {
     }
 }
 
-void ThrustStandGUI::changeScene() {
-    if (lastSceneChange.isValid() && lastSceneChange.elapsed() < 100) {
-        return;
-    }
-    lastSceneChange.start();
-
-    if (graphic_timer) graphic_timer->stop();
-
-    if (current_scene == "MAIN") {
-        current_scene = "GRAPH";
-        this->createGraphScene();
-
-        instantthrustGUI = nullptr;
-        instantcurrentGUI = nullptr;
-        instanttorqueGUI = nullptr;
-        instantrpmGUI = nullptr;
-        instantthrottleGUI = nullptr;
-        instantpowerGUI = nullptr;
-    }
-    else if (current_scene == "GRAPH") {
-        current_scene = "MAIN";
-        this->createMainScene();
-
-        voltageGraph = nullptr;
-        currentGraph = nullptr;
-        powerGraph = nullptr;
-        thrustGraph = nullptr;
-        throttleGraph = nullptr;
-        rpmGraph = nullptr;
-    }
-
-    this->updateBottomToolbar();
-}
-
-void ThrustStandGUI::changeFunctionMode() {
-    QString function_mode = backend_handler->get_function_mode();
-    if (lastFunctionModeChange.isValid() && lastFunctionModeChange.elapsed() < 100) {
-        return;
-    }
-    lastFunctionModeChange.start();
-
-    if (current_scene != "GRAPH") {
-        function_mode = (function_mode == "Basic") ? "Experiment" : "Basic";
-        backend_handler->set_function_mode(function_mode);
-        this->updateBottomToolbar();
-        this->createMainScene();
-    }
-    else {
-        backend_handler->playAudio(100, "ChangeToHomeFirst");
-    }
-}
-
-void ThrustStandGUI::createMainScene() {
-    graphic_timer->stop();
-
-    auto& cfg = backend_handler->cfg;
-    auto& mqttcfg = backend_handler->mqttcfg;
-    auto& tel = backend_handler->tel;
-    auto& cal = backend_handler->cal;
-
-    if (centralWidget()) {
-        firstIconButton = nullptr;
-        secondIconButton = nullptr;
-        thirdIconButton = nullptr;
-        statusIconButton = nullptr;
-        saveIconButton = nullptr;
-        loggingIconButton = nullptr;
-        delete centralWidget();
-    }
-
-    QWidget* centralWidget = new QWidget(this);
-    centralWidget->setObjectName("CentralWidget");
-    setCentralWidget(centralWidget);
-
-    QString backgroundStyle = QString(
-        "QWidget#CentralWidget {" "background-image: url(%1);"
-        "background-position: center;""background-repeat: no-repeat;"
-        "}").arg(MAINSCENE_BG);
-    centralWidget->setStyleSheet(backgroundStyle);
-
-    QVBoxLayout* mainVLayout = new QVBoxLayout(centralWidget);
-    mainVLayout->setContentsMargins(0, 0, 0, 0);
-    mainVLayout->setSpacing(0);
-
-    QWidget* topSection = new QWidget(centralWidget);
-    topSection->setStyleSheet("background: transparent;");
-
-    QGridLayout* gridLayout = new QGridLayout(topSection);
-    gridLayout->setContentsMargins(50, 35, 50, 20);
-    gridLayout->setSpacing(20);
-
-    const int TITLE_SIZE = 36;
-
-    instantthrustGUI = new Containers("Instant Thrust", TITLE_SIZE, "white", tel.thrust, true, backend_handler, topSection);
-    instantcurrentGUI = new Containers("Instant Current", TITLE_SIZE, "white", tel.current, true, backend_handler, topSection);
-    instanttorqueGUI = new Containers("Instant Torque", TITLE_SIZE, "white", tel.torque, false, backend_handler, topSection);
-    instantrpmGUI = new Containers("Instant RPM", TITLE_SIZE, "white", tel.rpm, false, backend_handler, topSection);
-    instantthrottleGUI = new Containers("Instant Throttle", TITLE_SIZE, "white", (double)tel.throttle, false, backend_handler, topSection);
-    instantpowerGUI = new Containers("Instant Power", TITLE_SIZE, "white", tel.power, false, backend_handler, topSection);
-    batteryWidget = new BatteryWidget("Instant Voltage", true, topSection, tel.voltage);
-
-    double minV = bounds_map.value("Voltage").first;
-    double maxV = bounds_map.value("Voltage").second;
-    int initial_battery_pct = std::clamp((int)((tel.voltage - minV) / (maxV - minV) * 100), 0, 100);
-    batteryWidget->setPercentage(initial_battery_pct);
-
-    gridLayout->addWidget(instantthrustGUI, 0, 0);
-    gridLayout->addWidget(instanttorqueGUI, 0, 2);
-
-    gridLayout->addWidget(instantcurrentGUI, 1, 0);
-    gridLayout->addWidget(instantpowerGUI, 1, 2);
-
-    gridLayout->addWidget(instantthrottleGUI, 2, 0);
-    gridLayout->addWidget(instantrpmGUI, 2, 2);
-
-    gridLayout->addWidget(batteryWidget, 0, 1, 3, 1);
-    
-    gridLayout->setColumnStretch(0, 3);
-    gridLayout->setColumnStretch(1, 2);
-    gridLayout->setColumnStretch(2, 3);
-
-    gridLayout->setRowStretch(0, 1);
-    gridLayout->setRowStretch(1, 1);
-    gridLayout->setRowStretch(2, 1);
-
-    mainVLayout->addWidget(topSection, 1);
-
-    QFrame* bottomBar = createBottomToolbar();
-    mainVLayout->addWidget(bottomBar);
-
-    this->updateBottomToolbar();
-
-    graphic_timer->start(GRAPHIC_UPDATES_REFRESH_RATE);
-
-    if (backend_handler->get_function_mode() == "Experiment" && !backend_handler->experiment_running) {
-        customizeExperiment();
-    }
-}
-
-void ThrustStandGUI::createGraphScene() {
-    QWidget* centralWidget = new QWidget(this);
-    centralWidget->setObjectName("CentralWidget");
-    setCentralWidget(centralWidget);
-
-    QString backgroundStyle = QString(
-        "QWidget#CentralWidget {"
-        "background-image: url(%1);"
-        "background-position: center;"
-        "background-repeat: no-repeat;"
-        "}").arg(MAINSCENE_BG);
-    centralWidget->setStyleSheet(backgroundStyle);
-
-    QVBoxLayout* mainVLayout = new QVBoxLayout(centralWidget);
-    mainVLayout->setContentsMargins(0, 0, 0, 0);
-    mainVLayout->setSpacing(0);
-
-    QWidget* chartsArea = new QWidget(centralWidget);
-    chartsArea->setStyleSheet("background: transparent;");
-
-    QGridLayout* chartsGrid = new QGridLayout(chartsArea);
-    chartsGrid->setContentsMargins(40, 30, 40, 20);
-    chartsGrid->setSpacing(24);
-
-    voltageGraph = new GraphContainer("Instant Voltage", "V", chartsArea);
-    currentGraph = new GraphContainer("Instant Current", "A", chartsArea);
-    powerGraph = new GraphContainer("Instant Power", "W", chartsArea);
-    thrustGraph = new GraphContainer("Instant Thrust", "N", chartsArea);
-    throttleGraph = new GraphContainer("Instant Throttle", "%", chartsArea);
-    rpmGraph = new GraphContainer("Instant RPM", "rpm", chartsArea);
-
-    voltageGraph->setFullData(timeHistory, voltageHistory);
-    currentGraph->setFullData(timeHistory, currentHistory);
-    powerGraph->setFullData(timeHistory, powerHistory);
-    thrustGraph->setFullData(timeHistory, thrustHistory);
-    throttleGraph->setFullData(timeHistory, throttleHistory);
-    rpmGraph->setFullData(timeHistory, rpmHistory);
-
-    chartsGrid->addWidget(voltageGraph, 0, 0);
-    chartsGrid->addWidget(currentGraph, 1, 0);
-    chartsGrid->addWidget(powerGraph, 2, 0);
-    chartsGrid->addWidget(thrustGraph, 0, 1);
-    chartsGrid->addWidget(throttleGraph, 1, 1);
-    chartsGrid->addWidget(rpmGraph, 2, 1);
-
-    for (int r = 0; r < 3; ++r) chartsGrid->setRowStretch(r, 1);
-    chartsGrid->setColumnStretch(0, 1);
-    chartsGrid->setColumnStretch(1, 1);
-
-    mainVLayout->addWidget(chartsArea, 1);
-
-    QFrame* bottomBar = createBottomToolbar();
-    mainVLayout->addWidget(bottomBar);
-
-    if (graphic_timer && !graphic_timer->isActive()) {
-        graphic_timer->start(GRAPHIC_UPDATES_REFRESH_RATE);
-    }
-}
-
 double ThrustStandGUI::getThrottlePercentage(int value) {
     return backend_handler->getThrottlePercentage(value);
-}
-
-void ThrustStandGUI::graphicUpdates() {
-    if (!backend_handler->process_begin) return;
-
-    const auto& tel = backend_handler->tel;
-
-    double currentTime = graphtimeCounter + ((double)GRAPHIC_UPDATES_REFRESH_RATE / 1000.0);
-    graphtimeCounter = currentTime;
-
-    auto appendData = [&](QVector<double>& buffer, double value) {
-        buffer.append(value); if (buffer.size() > MAX_POINTS) buffer.removeFirst(); };
-        
-    timeHistory.append(currentTime);
-    if (timeHistory.size() > MAX_POINTS) timeHistory.removeFirst();
-
-    double throttle_percentage = backend_handler->getThrottlePercentage(tel.throttle);
-
-    appendData(thrustHistory, tel.thrust);
-    appendData(rpmHistory, tel.rpm);
-    appendData(voltageHistory, tel.voltage);
-    appendData(currentHistory, tel.current);
-    appendData(powerHistory, tel.power);
-    appendData(throttleHistory, throttle_percentage);
-
-    if (current_scene == "MAIN" && instantthrustGUI != nullptr) {
-        instantthrustGUI->updateData(tel.thrust);
-        instantcurrentGUI->updateData(tel.current);
-        instanttorqueGUI->updateData(tel.torque);
-        instantthrottleGUI->updateData((double)tel.throttle);
-        instantrpmGUI->updateData(tel.rpm);
-        instantpowerGUI->updateData(tel.power);
-
-        if (batteryWidget) {
-            double minV = bounds_map.value("Voltage").first;
-            double maxV = bounds_map.value("Voltage").second;
-
-            int pct = 0;
-            pct = std::clamp((int)((tel.voltage - minV) / (maxV - minV) * 100.0), 0, 100);
-            batteryWidget->setPercentage(pct);
-            batteryWidget->setVoltage(tel.voltage);
-        }
-
-    }
-    else if (current_scene == "GRAPH" && thrustGraph != nullptr) {
-        thrustGraph->addDataPoint(graphtimeCounter, tel.thrust);
-        rpmGraph->addDataPoint(graphtimeCounter, tel.rpm);
-        voltageGraph->addDataPoint(graphtimeCounter, tel.voltage);
-        currentGraph->addDataPoint(graphtimeCounter, tel.current);
-        powerGraph->addDataPoint(graphtimeCounter, tel.power);
-        throttleGraph->addDataPoint(graphtimeCounter, throttle_percentage);
-    }
 }
 
 void ThrustStandGUI::serial_control() {
@@ -1203,56 +1212,7 @@ void ThrustStandGUI::serial_control() {
     selection_window->show();
 }
 
-void ThrustStandGUI::create_approve_window() {
-
-    QWidget* approve_window = new QWidget(nullptr, Qt::Window);
-    approve_window->setObjectName("ModernDialog");
-    approve_window->setWindowTitle("Approve Transition");
-    approve_window->setMinimumSize(300,200);
-    approve_window->setWindowModality(Qt::ApplicationModal);
-    approve_window->setAttribute(Qt::WA_DeleteOnClose);
-    approve_window->setAttribute(Qt::WA_StyledBackground, true);
-    approve_window->setWindowIcon(QIcon(ICONPATH));
-    approve_window->setStyleSheet(DIALOG_STYLE);
-
-    QVBoxLayout* layout = new QVBoxLayout(approve_window);
-    layout->setContentsMargins(32, 28, 32, 28);
-    layout->setSpacing(12);
-
-    auto makeSectionLabel = [approve_window](const QString& text) {
-        QLabel* l = new QLabel(text, approve_window);
-        l->setObjectName("SectionLabel");
-        QFont f("Segoe UI", 10, QFont::DemiBold);
-        f.setLetterSpacing(QFont::AbsoluteSpacing, 2);
-        l->setFont(f);
-        return l;
-        };
-
-    QLabel* header = new QLabel("APPROVE TRANSITION WHEN WINDTUNNEL IS STABLE", approve_window);
-    header->setObjectName("DialogHeader");
-    QFont hf("Segoe UI", 15, QFont::DemiBold);
-    hf.setLetterSpacing(QFont::AbsoluteSpacing, 3);
-    header->setFont(hf);
-    header->setAlignment(Qt::AlignCenter);
-    layout->addWidget(header);
-    layout->addSpacing(10);
-
-    QPushButton* confirmButton = new QPushButton("Approve Transition", approve_window);
-    confirmButton->setObjectName("PrimaryButton");
-    confirmButton->setFixedHeight(46);
-    confirmButton->setCursor(Qt::PointingHandCursor);
-    layout->addWidget(confirmButton);
-
-    connect(confirmButton, &QPushButton::clicked, this, [confirmButton, approve_window, this]() {
-		backend_handler->cfg.manual_transition_approved = true;
-		backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
-        approve_window->close();
-    });
-
-    approve_window->show();
-}
-
-// -----------------------------------------------------
+// SETTINGS FUNCTIONS
 
 void ThrustStandGUI::setupSettingsFields() {
     
@@ -1620,7 +1580,7 @@ void ThrustStandGUI::loadSettings() {
     qDebug() << "Settings loaded successfully!";
 }
 
-//------------------------------------------------------
+// EXPERIMENT FUNCTIONS
 
 void ThrustStandGUI::setupExperimentFields() {
 
@@ -1921,4 +1881,53 @@ void ThrustStandGUI::onExperimentFinished() {
     backend_handler->experiment_running = false;
     this->updateBottomToolbar();
     if (backend_handler->get_function_mode() == "Experiment") customizeExperiment();
+}
+
+void ThrustStandGUI::create_approve_window() {
+
+    QWidget* approve_window = new QWidget(nullptr, Qt::Window);
+    approve_window->setObjectName("ModernDialog");
+    approve_window->setWindowTitle("Approve Transition");
+    approve_window->setMinimumSize(300, 200);
+    approve_window->setWindowModality(Qt::ApplicationModal);
+    approve_window->setAttribute(Qt::WA_DeleteOnClose);
+    approve_window->setAttribute(Qt::WA_StyledBackground, true);
+    approve_window->setWindowIcon(QIcon(ICONPATH));
+    approve_window->setStyleSheet(DIALOG_STYLE);
+
+    QVBoxLayout* layout = new QVBoxLayout(approve_window);
+    layout->setContentsMargins(32, 28, 32, 28);
+    layout->setSpacing(12);
+
+    auto makeSectionLabel = [approve_window](const QString& text) {
+        QLabel* l = new QLabel(text, approve_window);
+        l->setObjectName("SectionLabel");
+        QFont f("Segoe UI", 10, QFont::DemiBold);
+        f.setLetterSpacing(QFont::AbsoluteSpacing, 2);
+        l->setFont(f);
+        return l;
+        };
+
+    QLabel* header = new QLabel("APPROVE TRANSITION WHEN WINDTUNNEL IS STABLE", approve_window);
+    header->setObjectName("DialogHeader");
+    QFont hf("Segoe UI", 15, QFont::DemiBold);
+    hf.setLetterSpacing(QFont::AbsoluteSpacing, 3);
+    header->setFont(hf);
+    header->setAlignment(Qt::AlignCenter);
+    layout->addWidget(header);
+    layout->addSpacing(10);
+
+    QPushButton* confirmButton = new QPushButton("Approve Transition", approve_window);
+    confirmButton->setObjectName("PrimaryButton");
+    confirmButton->setFixedHeight(46);
+    confirmButton->setCursor(Qt::PointingHandCursor);
+    layout->addWidget(confirmButton);
+
+    connect(confirmButton, &QPushButton::clicked, this, [confirmButton, approve_window, this]() {
+        backend_handler->cfg.manual_transition_approved = true;
+        backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
+        approve_window->close();
+        });
+
+    approve_window->show();
 }

@@ -147,9 +147,9 @@ private:
 
     double getThrottlePercentage(int value);
 
-    void calibrate_parameters();
+    void calibrate_parameters_window();
     void inspect_propeller_logs();
-    void tune_controller();
+    void tune_controller_window();
     void stopMotor();
 
     void setupSettingsFields();

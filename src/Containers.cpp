@@ -13,12 +13,12 @@ Containers::Containers(const QString& title, int titleSize, const QString& title
     double initialValue, bool hasBar, BackendHandler* backend_handler, QWidget* parent)
     : QFrame(parent), title_text(title), title_label_size(titleSize), title_label_color(titleColor),
     value(initialValue), unit(units_map.value(title)), has_bar(hasBar), quantity(actual_quantity.value(title)),
-    backend_handler(backend_handler)   
+    backend_handler(backend_handler)
 {
     QString function_mode = backend_handler->get_function_mode();
     low_bound = bounds_map.value(quantity).first;
     high_bound = bounds_map.value(quantity).second;
-   
+
     QVector<QString> colors = progress_bar_colors_map.value(quantity);
 
     if (colors.size() >= 3) {
@@ -35,15 +35,15 @@ Containers::Containers(const QString& title, int titleSize, const QString& title
 
     design();
 
-    if ((quantity == "Throttle") && (function_mode == "Basic")){ // αναλογα το text που βαζω στο title καταλαβαινω το quantity
+    if ((quantity == "Throttle") && (function_mode == "Basic")) { // αναλογα το text που βαζω στο title καταλαβαινω το quantity
         setupControlElements();
         QObject::connect(backend_handler, &BackendHandler::modeChanged, this, &Containers::handleModeChange);
     }
 
     setObjectName("Containers");
     setStyleSheet("QFrame#Containers {" "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
-    "stop:0 rgba(30,41,59,200), stop:1 rgba(10,16,30,225));" "border: 1px solid rgba(255,255,255,40);"
-    "border-radius: 28px;" "}");
+        "stop:0 rgba(30,41,59,200), stop:1 rgba(10,16,30,225));" "border: 1px solid rgba(255,255,255,40);"
+        "border-radius: 28px;" "}");
 }
 
 void Containers::design() {
@@ -75,14 +75,14 @@ void Containers::design() {
         double maxV = value_limit.value(quantity);
 
         if (quantity == "Throttle") {
-            maxV = 100.0;             
+            maxV = 100.0;
         }
         else if (quantity == "RPM" && backend_handler->cfg.max_rpm > 0) {
             maxV = backend_handler->cfg.max_rpm;
         }
 
         graphic->setRange(0.0, maxV);
-        graphic->setValue(toDisplayValue(value));  
+        graphic->setValue(toDisplayValue(value));
 
         frameLayout->addWidget(graphic, 1);
         return;
@@ -135,7 +135,7 @@ void Containers::setupControlElements() {
         "QCheckBox::indicator { width: 20px; height: 20px; border-radius: 6px;"
         "                       border: 2px solid rgba(255,255,255,90); background: transparent; }"
         "QCheckBox::indicator:checked { background: " + QString(THEME_COLOR) + "; border-color: " + QString(THEME_COLOR) + "; }");
-    
+
 
     QObject::connect(toggle_switch_widget, &QCheckBox::checkStateChanged,
         backend_handler, &BackendHandler::manualToggleEvent);
@@ -148,7 +148,7 @@ void Containers::setupControlElements() {
             "              font-size: 14px; font-weight: 700; }"
             "QPushButton:hover { background: #38bdf8; }"
             "QPushButton:pressed { background: #0369a1; }").arg(THEME_COLOR));
- 
+
     QString buttonStyle = QString("QPushButton { background-color: %1; color: white; border-radius: 10px; font-weight: bold; }" "QPushButton:hover { background-color: blue; }").arg(THEME_COLOR);
 
     QObject::connect(slider_opener_button_widget, &QPushButton::clicked,
@@ -172,7 +172,7 @@ void Containers::checkBoundsAndSetColor(double currentValue)
     double compareValue = currentValue;
 
     if (quantity == "Throttle") {
-        compareValue = backend_handler->getThrottlePercentage(static_cast<int>(currentValue));   
+        compareValue = backend_handler->getThrottlePercentage(static_cast<int>(currentValue));
     }
 
     QString color = THEME_COLOR;
@@ -184,7 +184,7 @@ void Containers::checkBoundsAndSetColor(double currentValue)
         else if (compareValue < high_bound) {
             color = mid_color;
         }
-        else  color = high_color;    
+        else  color = high_color;
     }
 
     progress_bar->setStyleSheet(
@@ -210,14 +210,14 @@ void Containers::updateData(double newValue) {
     backend_handler->handleMode();
     backend_handler->setValue(newValue);
 
-    if (graphic) {       
+    if (graphic) {
         graphic->setValue(quantity == "Throttle" ? qMax(0.0, backend_handler->getThrottlePercentage(backend_handler->tel.throttle)) : value);
         return;
     }
 
     double shown = value;
     if (quantity == "Throttle") shown = backend_handler->getThrottlePercentage((int)value);
-    
+
     value_label->setText(formatValueText(shown));
 
 
@@ -225,7 +225,7 @@ void Containers::updateData(double newValue) {
         double displayProgress = value;
 
         if (quantity == "Voltage") {
-            double minV = low_bound; 
+            double minV = low_bound;
             double maxV = value_limit.value(quantity);
 
             displayProgress = ((value - minV) / (maxV - minV)) * maxV;

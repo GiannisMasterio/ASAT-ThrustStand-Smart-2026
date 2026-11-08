@@ -63,6 +63,7 @@ QString BackendHandler::get_function_mode() {
     return this->function_mode;
 }
 
+// TELEMETRY
 void BackendHandler::updateTelemetry(QMap<QString, double> value_keeper) {
 
     tel.thrust = calibrate_thrust(value_keeper.value("Thrust", tel.thrust)) + cal.thrust_offset;
@@ -81,40 +82,6 @@ void BackendHandler::updateTelemetry(QMap<QString, double> value_keeper) {
     }
 
     emit telemetryUpdated();
-}
-
-double BackendHandler::RPMFilter(double new_rpm) {
-    rpm_buffer.push_back(new_rpm);
-
-    if (rpm_buffer.size() > rpm_filter_window) {
-        rpm_buffer.erase(rpm_buffer.begin());
-    }
-
-    QVector<double> sorted_buffer = rpm_buffer;
-    std::sort(sorted_buffer.begin(), sorted_buffer.end());
-
-    return sorted_buffer[sorted_buffer.size() / 2];
-}
-
-double BackendHandler::calibrate_current(double esp_current) {
-    if (!cal.manual_current_calibration) return esp_current;
-    double rawC_avg = esp_current / cal.current_lsb_user_esp;
-    double new_current = rawC_avg * cal.current_lsb_user_selected;
-    return new_current;
-}
-
-double BackendHandler::calibrate_thrust(double esp_newton) {
-    if (!cal.manual_thrust_calibration || cal.thrust_calibration_factor == 0) return esp_newton;
-    double esp_grams = esp_newton * 1000.0 / 9.81;
-    double raw_avg = cal.esp_actual_tare_offset - esp_grams * cal.esp_thrust_calibration_factor;
-
-    double new_grams = cal.direction_sign * (raw_avg - cal.tare_newton_offset) / cal.thrust_calibration_factor;
-    double new_newton = (new_grams / 1000.0) * cal.gravity;
-    return new_newton;
-}
-
-void BackendHandler::playAudio(int volume, QString audio_tag) {
-    if (audio_handler) audio_handler->playSound(volume, audio_tag);
 }
 
 void BackendHandler::receiveTelemetry(const QString& data, QString source) {
@@ -174,7 +141,6 @@ void BackendHandler::receiveTelemetry(const QString& data, QString source) {
     if (tel.voltage == battery_removed_voltage_value) tel.voltage = 0;
 
     if (tel.voltage == 0) {
-        write_logs = false;
         if (is_armed) emit armedStateChanged(false); // disarm
     }
     else {
@@ -188,31 +154,42 @@ void BackendHandler::receiveTelemetry(const QString& data, QString source) {
     logToFile(true);
 }
 
-void BackendHandler::initLogFile() {
-    QString fullPath = log_file_path;
+double BackendHandler::RPMFilter(double new_rpm) {
+    rpm_buffer.push_back(new_rpm);
 
-    if (!QFileInfo(fullPath).isAbsolute() || fullPath.isEmpty()) {
-        fullPath = QCoreApplication::applicationDirPath() + QDir::separator() + log_file_path;
+    if (rpm_buffer.size() > rpm_filter_window) {
+        rpm_buffer.erase(rpm_buffer.begin());
     }
 
-    QFile file(fullPath);
+    QVector<double> sorted_buffer = rpm_buffer;
+    std::sort(sorted_buffer.begin(), sorted_buffer.end());
 
-    if (!file.exists()) {
-        if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            QTextStream out(&file);
-            out << "                     Timestamp                  Thrust (N)               Torque (N*m)               Voltage (V)                Current (A)               RPM               Throttle (%)                  Power (W)              Propeller Name            AOA (deg)           Airspeed (m/s)\n";
-            file.close();
-            qDebug() << "Created initial log file:" << fullPath;
-        }
-    }
-
-    log_file_path = fullPath;
+    return sorted_buffer[sorted_buffer.size() / 2];
 }
+
+double BackendHandler::calibrate_current(double esp_current) {
+    if (!cal.manual_current_calibration) return esp_current;
+    double rawC_avg = esp_current / cal.current_lsb_user_esp;
+    double new_current = rawC_avg * cal.current_lsb_user_selected;
+    return new_current;
+}
+
+double BackendHandler::calibrate_thrust(double esp_newton) {
+    if (!cal.manual_thrust_calibration || cal.thrust_calibration_factor == 0) return esp_newton;
+    double esp_grams = esp_newton * 1000.0 / 9.81;
+    double raw_avg = cal.esp_actual_tare_offset - esp_grams * cal.esp_thrust_calibration_factor;
+
+    double new_grams = cal.direction_sign * (raw_avg - cal.tare_newton_offset) / cal.thrust_calibration_factor;
+    double new_newton = (new_grams / 1000.0) * cal.gravity;
+    return new_newton;
+}
+
+
+// LOGGING FUNCTIONS
 
 void BackendHandler::logToFile(bool status) {
     if (!status || !write_logs) return;
 
-    int label_width = 26;
     QFile file(log_file_path);
     bool write_header = (!file.exists() || file.size() == 0);
 
@@ -224,39 +201,97 @@ void BackendHandler::logToFile(bool status) {
     QString timestamp = QDateTime::currentDateTime().toString("HH:mm:ss");
     double throttle_pct = getThrottlePercentage(tel.throttle);
 
-    // ΔΥΝΑΜΙΚΗ ΛΙΣΤΑ LOGGING: Προσθέτεις/αφαιρείς ό,τι θες εδώ σε 1 γραμμή!
     QVector<QPair<QString, QString>> log_columns = {
-        {"Timestamp",                 timestamp},
-        {"Thrust (N)",                QString::number(tel.thrust, 'f', 2)},
-        {"Torque (N*m)",              QString::number(tel.torque, 'f', 3)},
-        {"Voltage (V)",               QString::number(tel.voltage, 'f', 2)},
-        {"Current (A)",               QString::number(tel.current, 'f', 2)},
-        {"RPM",                       QString::number(tel.rpm, 'f', 0)},
-        {"Throttle (%)",              QString::number(throttle_pct, 'f', 2)},
-        {"Power (W)",                 QString::number(tel.power, 'f', 2)},
-        {"Propeller Name",            cfg.propeller_name},
-        {"AOA (deg)",                 QString::number(cfg.angle_of_attack, 'f', 2)},
-        {"Airspeed (m/sec)",          QString::number(cfg.airspeed, 'f', 2)}
+        { "Timestamp",                 timestamp },
+        { "Thrust (N)",                QString::number(tel.thrust, 'f', 2) },
+        { "Torque (N*m)",              QString::number(tel.torque, 'f', 3) },
+        { "Voltage (V)",               QString::number(tel.voltage, 'f', 2) },
+        { "Current (A)",               QString::number(tel.current, 'f', 2) },
+        { "RPM",                       QString::number(tel.rpm, 'f', 0) },
+        { "Throttle (%)",              QString::number(throttle_pct, 'f', 2) },
+        { "Power (W)",                 QString::number(tel.power, 'f', 2) },
+        { "Propeller Name",            cfg.propeller_name },
+        { "AOA (deg)",                 QString::number(cfg.angle_of_attack, 'f', 2) },
+        { "Airspeed (m/sec)",          QString::number(cfg.airspeed, 'f', 2) }
     };
+
+    QStringList headers;
+    QStringList values;
+
+    // Διαχωρισμός των headers και των values
+    for (const auto& col : log_columns) {
+        headers << col.first;
+        values << col.second;
+    }
 
     QTextStream out(&file);
 
-    // Αν το αρχείο είναι άδειο, γράφει αυτόματα τις επικεφαλίδες από τη λίστα!
     if (write_header) {
-        for (const auto& col : log_columns) {
-            out << QString("%1 ").arg(col.first, label_width);
-        }
-        out << "\n";
+        out << headers.join(";") << "\n";
     }
-
-    // Γράφει τις τιμές
-    for (const auto& col : log_columns) {
-        out << QString("%1 ").arg(col.second, label_width);
-    }
-    out << "\n";
+    out << values.join(";") << "\n";
 
     file.close();
 }
+
+void BackendHandler::initLogFile() {
+    QString fullPath = log_file_path;
+
+    if (!QFileInfo(fullPath).isAbsolute() || fullPath.isEmpty()) {
+        fullPath = QCoreApplication::applicationDirPath() + QDir::separator() + log_file_path;
+    }
+
+    QFile file(fullPath);
+
+    if (!file.exists()) {
+        if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            file.close();
+            qDebug() << "Created initial empty log file:" << fullPath;
+        }
+    }
+
+    log_file_path = fullPath;
+}
+
+void BackendHandler::chooseLogLocation() {
+    QString initialDir = QFileInfo(log_file_path).path();
+    QString newFilePath = QFileDialog::getSaveFileName(
+        nullptr,
+        "Select Log File Location",
+        initialDir,
+        "CSV Log (*.csv);;Text Log (*.txt);;All files (*.*)"
+    );
+
+    if (!newFilePath.isEmpty()) {
+        if (!newFilePath.endsWith(".csv", Qt::CaseInsensitive) && !newFilePath.endsWith(".txt", Qt::CaseInsensitive)) {
+            newFilePath += ".csv";
+        }
+
+        log_file_path = newFilePath;
+        initLogFile();
+        qDebug() << "New log file location set to:" << log_file_path;
+    }
+}
+
+void BackendHandler::openLogFile() {
+    QString fullFilePath = log_file_path;
+
+    if (!QFileInfo(fullFilePath).isAbsolute() || fullFilePath.isEmpty()) {
+        fullFilePath = QCoreApplication::applicationDirPath() + QDir::separator() + "ASAT ThrustStand Records.csv";
+    }
+
+    if (!QFile::exists(fullFilePath)) {
+		initLogFile(); // Δημιουργία του αρχείου αν δεν υπάρχει
+        openLogFile();
+        return;
+    }
+
+    if (!QDesktopServices::openUrl(QUrl::fromLocalFile(fullFilePath))) {
+        QMessageBox::critical(nullptr, "Error", "Could not open file with the system default application.");
+    }
+}
+
+// SERIAL FUNCTIONS
 
 void BackendHandler::handleSerial(bool status) {
     if (status) {
@@ -339,44 +374,8 @@ void BackendHandler::serial_sendCommand(QString command) {
     qDebug() << "TX:" << data << "bytes:" << bytes;
 }
 
-void BackendHandler::chooseLogLocation() {
-    QString initialDir = QFileInfo(log_file_path).path();
-    QString newFilePath = QFileDialog::getSaveFileName(
-        nullptr,
-        "Select Log File Location",
-        initialDir,
-        "CSV Log (*.csv);;Text Log (*.txt);;All files (*.*)"
-    );
-
-    if (!newFilePath.isEmpty()) {
-        if (!newFilePath.endsWith(".csv", Qt::CaseInsensitive) && !newFilePath.endsWith(".txt", Qt::CaseInsensitive)) {
-            newFilePath += ".csv";
-        }
-
-        log_file_path = newFilePath;
-        initLogFile();
-        qDebug() << "New log file location set to:" << log_file_path;
-    }
-}
-
-void BackendHandler::openLogFile() {
-    QString fullFilePath = log_file_path;
-
-    if (!QFileInfo(fullFilePath).isAbsolute() || fullFilePath.isEmpty()) {
-        fullFilePath = QCoreApplication::applicationDirPath() + QDir::separator() + "ASAT ThrustStand Records.csv";
-    }
-
-    if (!QFile::exists(fullFilePath)) {
-        QMessageBox::warning(nullptr, "File Not Found", "Log file does not exist at: " + fullFilePath);
-        return;
-    }
-
-    if (!QDesktopServices::openUrl(QUrl::fromLocalFile(fullFilePath))) {
-        QMessageBox::critical(nullptr, "Error", "Could not open file with the system default application.");
-    }
-}
-
 // MQTT FUNCTIONS
+
 void BackendHandler::start_mqtt() {
     if (mqttcfg.mqtt_client) {
         mqttcfg.mqtt_client->disconnectFromBroker();
@@ -461,6 +460,10 @@ void BackendHandler::updateMqttData() {
 
 // AUDIO FUNCTIONS
 
+void BackendHandler::playAudio(int volume, QString audio_tag) {
+    if (audio_handler) audio_handler->playSound(volume, audio_tag);
+}
+
 bool BackendHandler::isSoundPlaying(QString audio) {
     return audio_handler ? audio_handler->isSoundPlaying(audio) : false;
 }
@@ -469,9 +472,8 @@ void BackendHandler::setSoundStatus(bool sound_status) {
     if (audio_handler) audio_handler->setSoundStatus(sound_status);
 }
 
-
-
 // BASIC MODE FUNCTIONS 
+
 void BackendHandler::manualToggleEvent(int state) {
     qDebug() << "Toggle State Changed" << state;
 
@@ -734,8 +736,6 @@ void BackendHandler::initialize_stabilizing_thrust() {
 void BackendHandler::executeEmergencyStop() {
     this->resetExperiment();
 }
-
-
 
 void BackendHandler::publishThrottle(int new_throttle) {
 
