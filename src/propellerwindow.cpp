@@ -1,11 +1,5 @@
-#include "propellerwindow.h"
-#include <QFileDialog>
-#include <QMessageBox>
-#include <QDir>
-#include <QTextStream>
-#include <QCompleter>
-#include <QRegularExpression>.
-#include "constants.h"
+#include "PropellerWindow.h"
+#include "Constants.h"
 
 PropellerWindow::PropellerWindow(BackendHandler* backend, QWidget* parent)
     : QWidget(parent, Qt::Window), backend_handler(backend)
@@ -42,7 +36,7 @@ void PropellerWindow::setupUI() {
         return l;
         };
 
-    // --- Πάνω γραμμή: επιλογή προπέλας ---
+    // --- Epilogh propellas ---
     QHBoxLayout* top_row = new QHBoxLayout();
     QLabel* prop_label = makeSectionLabel("SELECTED PROPELLER");
 
@@ -51,8 +45,12 @@ void PropellerWindow::setupUI() {
     propellerBox->setFixedWidth(280);
     propellerBox->setMinimumHeight(40);
     for (const auto& prop : backend_handler->cfg.propeller_list) {
-        propellerBox->addItem(prop);
+		propellerBox->addItem(prop); // την προσθετω στο combobox αν ειναι στο υπαρχον list
     }
+
+    int propeller_idx = propellerBox->findText(backend_handler->cfg.propeller_name);
+    if (propeller_idx != -1) propellerBox->setCurrentIndex(propeller_idx);
+    else propellerBox->setCurrentText(backend_handler->cfg.propeller_name);
 
     top_row->addStretch();
     top_row->addWidget(prop_label);
@@ -64,7 +62,7 @@ void PropellerWindow::setupUI() {
     // --- Γραφήματα ---
     QHBoxLayout* graphs_layout = new QHBoxLayout();
     graphs_layout->setSpacing(24);
-    QStringList log_params = { "RPM", "Advance Ratio (J)", "Thrust (N)", "Power (W)", "Efficiency", "Torque (N*m)" };
+    QStringList log_params = { "RPM", "Throttle(%)" , "Advance Ratio (J)", "Thrust (N)", "Power (W)", "Efficiency", "Torque (N*m)", "Voltage (V)", "Current (A)"};
 
     auto createGraphColumn = [&](QString defaultX, QString defaultY) {
         QVBoxLayout* col = new QVBoxLayout();
@@ -143,8 +141,16 @@ void PropellerWindow::loadLogData() {
     backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
     QString targetProp = propellerBox->currentText();
 
-    QFile file(backend_handler->log_file_path);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) return;
+    QString initialPath = QCoreApplication::applicationDirPath() + QDir::separator() + "Logs";
+    QString filepath = QFileDialog::getOpenFileName(this, "Select Log Data CSV", initialPath, "CSV Files (*.csv);;Text Files (*.txt);;All Files (*.*)");
+
+    if (filepath.isEmpty()) return;
+
+    QFile file(filepath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qWarning() << "Could not open log file:" << filepath;
+        return;
+    }
 
     QTextStream in(&file);
     QVector<LogEntry> filteredEntries;
@@ -154,14 +160,26 @@ void PropellerWindow::loadLogData() {
         QString line = in.readLine().trimmed();
         if (line.isEmpty()) continue;
 
-        QStringList parts = line.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
-        if (isFirstLine && parts.at(0) == "Timestamp") { isFirstLine = false; continue; }
+        // Κόβουμε τη γραμμή με βάση το ερωτηματικό ή το κόμμα (ανάλογα τι χρησιμοποιεί το CSV σου)
+        QStringList parts = line.split(QRegularExpression("[,;]"), Qt::SkipEmptyParts);
 
-        if (parts.size() >= 10 && parts.at(7) == targetProp) {
+        // Χρησιμοποιούμε contains("Timestamp") για ασφάλεια, μήπως υπάρχει κάποιος κρυφός χαρακτήρας
+        if (isFirstLine && parts.at(0).contains("Timestamp")) {
+            isFirstLine = false;
+            continue;
+        }
+
+        // Τώρα η Προπέλα είναι στο index 8 και συνολικά έχουμε 11 στήλες (0 έως 10)
+        if (parts.size() >= 11 && parts.at(8).trimmed() == targetProp) {
             LogEntry entry;
             entry.thrust = parts.at(1).toDouble();
-            entry.rpm = parts.at(4).toDouble();
-            entry.power = parts.at(6).toDouble();
+            entry.torque = parts.at(2).toDouble();
+            entry.voltage = parts.at(3).toDouble();
+            entry.current = parts.at(4).toDouble();
+            entry.rpm = parts.at(5).toDouble();
+            entry.throttle = parts.at(6).toDouble();
+            entry.power = parts.at(7).toDouble();
+
             filteredEntries.append(entry);
         }
     }
@@ -173,7 +191,7 @@ void PropellerWindow::loadLogData() {
 }
 
 QVector<PropellerData> PropellerWindow::calculateMeanValues(const QVector<LogEntry>& rawEntries, double rpm_tolerance) {
-    QVector<PropellerData> meanDataList;
+    QVector<PropellerData> meanDataList; // ΛΙΣΤΑ ΜΕΣΩΝ ΟΡΩΝ
     if (rawEntries.isEmpty()) return meanDataList;
 
     double currentTargetRpm = rawEntries.first().rpm;
@@ -292,32 +310,36 @@ QVector<PropellerData> PropellerWindow::parseApcReferenceData(const QString& fil
 }
 
 void PropellerWindow::refreshPlots() {
-    auto extract = [](const PropellerData& d, const QString& param) -> double {
-        if (param == "RPM") return d.rpm;
-        if (param == "Advance Ratio (J)") return d.advance_ratio;
-        if (param == "Thrust (N)") return d.thrust;
-        if (param == "Power (W)") return d.power;
-        if (param == "Efficiency") return d.efficiency;
-        if (param == "Torque (N*m)") return d.torque;
+    auto extract = [](const PropellerData& data, const QString& param) -> double {
+        if (param == "RPM") return data.rpm;
+        if (param == "Advance Ratio (J)") return data.advance_ratio;
+        if (param == "Thrust (N)") return data.thrust;
+        if (param == "Power (W)") return data.power;
+        if (param == "Efficiency") return data.efficiency;
+        if (param == "Torque (N*m)") return data.torque;
+        if (param == "Voltage (V)") return data.voltage;
+        if (param == "Current (A)") return data.current;
+        if (param == "Throttle(%)") return data.throttle;
         return 0.0;
         };
 
-    for (auto g : groups) {
+    for (auto group : groups) {
+
         QVector<double> x_vals, y_vals, apc_x, apc_y;
-        const QString curX = g->x_sel->currentText();
-        const QString curY = g->y_sel->currentText();
+        const QString curX = group->x_sel->currentText();
+        const QString curY = group->y_sel->currentText();
 
-        for (const auto& d : currentMeanData) {
-            x_vals.append(extract(d, curX));
-            y_vals.append(extract(d, curY));
+		for (const auto& data : currentMeanData) { // φτιαχνω graph με τα mean values απο το log
+            x_vals.append(extract(data, curX)); 
+            y_vals.append(extract(data, curY));
         }
-        for (const auto& d : apcReferenceData) {
-            apc_x.append(extract(d, curX));
-            apc_y.append(extract(d, curY));
+		for (const auto& data : apcReferenceData) { // φτιαχνω graph με τα δεδομενα απο το APC reference txt
+            apc_x.append(extract(data, curX));
+            apc_y.append(extract(data, curY));
         }
 
-        g->graph->setFullData(x_vals, y_vals);
-        g->graph->addSecondaryData(apc_x, apc_y, "APC reference");
+        group->graph->setFullData(x_vals, y_vals);
+        group->graph->addSecondaryData(apc_x, apc_y, "APC reference");
     }
 }
 
@@ -326,11 +348,11 @@ void PropellerWindow::exportGraphs() {
     QDir dir("Exports");
     if (!dir.exists()) dir.mkpath(".");
 
-    for (auto g : groups) {
+    for (auto group : groups) {
         QString fileName = QString("Exports/Comparison_%1_vs_%2.png")
-            .arg(QString(g->y_sel->currentText()).remove(QRegularExpression("[^A-Za-z0-9]")),
-                QString(g->x_sel->currentText()).remove(QRegularExpression("[^A-Za-z0-9]")));
-        if (g->graph->getPlot()->savePng(fileName, 1200, 800)) {
+            .arg(QString(group->y_sel->currentText()).remove(QRegularExpression("[^A-Za-z0-9]")),
+                QString(group->x_sel->currentText()).remove(QRegularExpression("[^A-Za-z0-9]")));
+        if (group->graph->getPlot()->savePng(fileName, 1200, 800)) {
             qDebug() << "Saved graph to:" << fileName;
         }
     }

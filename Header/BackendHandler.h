@@ -16,7 +16,7 @@ class QDialog;
 
 struct LogEntry {
     double timeInSeconds;
-    double thrust, voltage, current, rpm, throttle, power, aoa, airspeed;
+    double thrust, voltage, current, rpm, throttle, power, aoa, airspeed, torque;
     QString propName;
 };
 
@@ -188,6 +188,7 @@ private:
 
     double calibrate_current(double value);
     double calibrate_thrust(double value);
+    double calibrate_torque(double value);
     double RPMFilter(double new_rpm);
 
     void publishThrottle(int new_throttle);

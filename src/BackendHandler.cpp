@@ -64,26 +64,6 @@ QString BackendHandler::get_function_mode() {
 
 // TELEMETRY FUNCTIONS
 
-void BackendHandler::updateTelemetry(QMap<QString, double> value_keeper) {
-
-    tel.thrust = calibrate_thrust(value_keeper.value("Thrust", tel.thrust)) + cal.thrust_offset;
-    tel.rpm = value_keeper.value("RPM", tel.rpm);
-    tel.current = calibrate_current(value_keeper.value("Current", tel.current)) + cal.current_offset;
-    tel.voltage = value_keeper.value("Voltage", tel.voltage);
-    tel.throttle = value_keeper.value("Throttle", tel.throttle);
-    tel.torque = value_keeper.value("Torque", tel.torque);
-    tel.power = tel.voltage * tel.current;
-
-    if (use_rpm_filter) {
-        tel.rpm = RPMFilter(tel.rpm);
-    }
-    else {
-        RPMFilter(tel.rpm);
-    }
-
-    emit telemetryUpdated();
-}
-
 void BackendHandler::receiveTelemetry(const QString& data, QString source) {
 
     if (source != selected_data_source) return;
@@ -155,6 +135,26 @@ void BackendHandler::receiveTelemetry(const QString& data, QString source) {
     logToFile(true);
 }
 
+void BackendHandler::updateTelemetry(QMap<QString, double> value_keeper) {
+
+    tel.thrust = calibrate_thrust(value_keeper.value("Thrust", tel.thrust)) + cal.thrust_offset;
+    tel.rpm = value_keeper.value("RPM", tel.rpm);
+    tel.current = calibrate_current(value_keeper.value("Current", tel.current)) + cal.current_offset;
+    tel.voltage = value_keeper.value("Voltage", tel.voltage);
+    tel.throttle = value_keeper.value("Throttle", tel.throttle);
+    tel.torque = calibrate_torque(value_keeper.value("Torque", tel.torque)) + cal.torque_offset ;
+    tel.power = tel.voltage * tel.current;
+
+    if (use_rpm_filter) {
+        tel.rpm = RPMFilter(tel.rpm);
+    }
+    else {
+        RPMFilter(tel.rpm);
+    }
+
+    emit telemetryUpdated();
+}
+
 double BackendHandler::RPMFilter(double new_rpm) {
     rpm_buffer.push_back(new_rpm);
 
@@ -183,6 +183,16 @@ double BackendHandler::calibrate_thrust(double esp_newton) {
     double new_grams = cal.direction_sign * (raw_avg - cal.tare_newton_offset) / cal.thrust_calibration_factor;
     double new_newton = (new_grams / 1000.0) * cal.gravity;
     return new_newton;
+}
+
+double BackendHandler::calibrate_torque(double esp_torque) {
+    if (!cal.manual_torque_calibration || cal.torque_calibration_factor == 0) {
+        return esp_torque;
+    }
+    double raw_val = esp_torque * cal.esp_torque_calibration_factor;
+    double new_torque = (raw_val - cal.tare_torque_offset) / cal.torque_calibration_factor;
+
+    return new_torque;
 }
 
 // LOGGING FUNCTIONS

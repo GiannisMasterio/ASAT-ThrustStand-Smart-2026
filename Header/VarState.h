@@ -65,9 +65,14 @@ struct CalibrationConfig {
     bool manual_thrust_calibration = false;
     bool auto_tare_thrust_at_begin = false;
 
+    bool manual_torque_calibration = false;
+    float torque_calibration_factor = 1.0f;
+    float esp_torque_calibration_factor = 1.0f;
+    float tare_torque_offset = 0.0f;
+
     double thrust_offset = 0.0;
     double current_offset = 0.0;
-
+	double torque_offset = 0.0;
     float gravity = 9.81f;
 };
 

@@ -315,7 +315,7 @@ void ThrustStandGUI::calibrate_parameters_window() {
     QWidget* cal_window = new QWidget(nullptr, Qt::Window);
     cal_window->setObjectName("ModernDialog");
     cal_window->setWindowTitle("Sensor Calibration");
-    cal_window->setMinimumSize(560, 780);
+    cal_window->setMinimumSize(560, 850); // Ελαφρώς μεγαλύτερο ύψος για να χωρέσει το Torque
     cal_window->setWindowModality(Qt::ApplicationModal);
     cal_window->setAttribute(Qt::WA_DeleteOnClose);
     cal_window->setAttribute(Qt::WA_StyledBackground, true);
@@ -432,6 +432,33 @@ void ThrustStandGUI::calibrate_parameters_window() {
     comboDirection->setCurrentIndex(dirIndex);
     mainLayout->addWidget(comboDirection);
 
+    mainLayout->addSpacing(12);
+    mainLayout->addWidget(makeDivider());
+    mainLayout->addSpacing(12);
+
+    // =========== TORQUE ===========
+    mainLayout->addWidget(makeGroupTitle("TORQUE (LOAD CELLS)"));
+    mainLayout->addSpacing(4);
+
+    QCheckBox* checkManualTorque = new QCheckBox("Enable Manual Torque Calibration", cal_window);
+    checkManualTorque->setChecked(cal.manual_torque_calibration);
+    checkManualTorque->setCursor(Qt::PointingHandCursor);
+    checkManualTorque->setMinimumHeight(34);
+    mainLayout->addWidget(checkManualTorque);
+
+    mainLayout->addWidget(makeSectionLabel("TORQUE CALIBRATION FACTOR"));
+    QLineEdit* editTorqueCalibrationFactor = makeNumberField(cal.torque_calibration_factor, 6);
+    mainLayout->addWidget(editTorqueCalibrationFactor);
+    mainLayout->addWidget(makeHint(QString("ESP/Arduino default torque cal factor: %1")
+        .arg(cal.esp_torque_calibration_factor, 0, 'f', 4)));
+    mainLayout->addSpacing(6);
+
+    mainLayout->addWidget(makeSectionLabel("TARE TORQUE OFFSET"));
+    QLineEdit* editTareTorqueOffset = makeNumberField(cal.tare_torque_offset, 8);
+    mainLayout->addWidget(editTareTorqueOffset);
+    mainLayout->addWidget(makeHint(QString("ESP/Arduino tare torque offset: 0.00")));
+    mainLayout->addSpacing(6);
+
     mainLayout->addStretch();
 
     // --- Apply ---
@@ -441,36 +468,61 @@ void ThrustStandGUI::calibrate_parameters_window() {
     btnConfirm->setCursor(Qt::PointingHandCursor);
     mainLayout->addWidget(btnConfirm);
 
-    connect(btnConfirm, &QPushButton::clicked, this, [this, &cal, checkManualCurrent, editLsbSelected, checkManualThrust, editThrustCalibrationFactor, comboDirection, editTareNewtonOffset, cal_window]() {
-        bool  next_manual_current_calibration = checkManualCurrent->isChecked();
-        float next_lsb = editLsbSelected->text().toFloat();
-        bool  next_man_thrust = checkManualThrust->isChecked();
-        float next_thrust_calibration_factor = editThrustCalibrationFactor->text().toFloat();
-        float next_direction_sign = comboDirection->currentData().toFloat();
-        float next_tare_offset = editTareNewtonOffset->text().toFloat();
+    connect(btnConfirm, &QPushButton::clicked, this, [this, &cal,
+        checkManualCurrent, editLsbSelected,
+        checkManualThrust, editThrustCalibrationFactor, comboDirection, editTareNewtonOffset,
+        checkManualTorque, editTorqueCalibrationFactor, editTareTorqueOffset,
+        cal_window]() {
 
-        if (cal.manual_current_calibration != next_manual_current_calibration ||
-            cal.current_lsb_user_selected != next_lsb ||
-            cal.manual_thrust_calibration != next_man_thrust ||
-            (cal.thrust_calibration_factor != next_thrust_calibration_factor && next_thrust_calibration_factor != 0) ||
-            cal.direction_sign != next_direction_sign ||
-            cal.tare_newton_offset != next_tare_offset)
-        {
-            backend_handler->unsaved_settings_changes = true;
-            this->updateBottomToolbar();
-        }
+            // Διαβάζουμε τις τιμές του UI
+            bool  next_manual_current_calibration = checkManualCurrent->isChecked();
+            float next_lsb = editLsbSelected->text().toFloat();
 
-        cal.manual_current_calibration = next_manual_current_calibration;
-        cal.current_lsb_user_selected = next_lsb;
-        cal.manual_thrust_calibration = next_man_thrust;
-        if (next_thrust_calibration_factor != 0) cal.thrust_calibration_factor = next_thrust_calibration_factor;
-        cal.direction_sign = next_direction_sign;
-        cal.tare_newton_offset = next_tare_offset;
+            bool  next_man_thrust = checkManualThrust->isChecked();
+            float next_thrust_calibration_factor = editThrustCalibrationFactor->text().toFloat();
+            float next_direction_sign = comboDirection->currentData().toFloat();
+            float next_tare_offset = editTareNewtonOffset->text().toFloat();
 
-        backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
-        qDebug() << "Calibration Updated: LSB =" << cal.current_lsb_user_selected << "Thrust Cal Factor =" << cal.thrust_calibration_factor;
+            bool  next_man_torque = checkManualTorque->isChecked();
+            float next_torque_calibration_factor = editTorqueCalibrationFactor->text().toFloat();
+            float next_tare_torque_offset = editTareTorqueOffset->text().toFloat();
 
-        cal_window->close();
+            // Έλεγχος αν άλλαξε οτιδήποτε για να βγάλουμε το εικονίδιο save
+            if (cal.manual_current_calibration != next_manual_current_calibration ||
+                cal.current_lsb_user_selected != next_lsb ||
+                cal.manual_thrust_calibration != next_man_thrust ||
+                (cal.thrust_calibration_factor != next_thrust_calibration_factor && next_thrust_calibration_factor != 0) ||
+                cal.direction_sign != next_direction_sign ||
+                cal.tare_newton_offset != next_tare_offset ||
+                cal.manual_torque_calibration != next_man_torque ||
+                (cal.torque_calibration_factor != next_torque_calibration_factor && next_torque_calibration_factor != 0) ||
+                cal.tare_torque_offset != next_tare_torque_offset)
+            {
+                backend_handler->unsaved_settings_changes = true;
+                this->updateBottomToolbar();
+            }
+
+            // Εφαρμογή Current
+            cal.manual_current_calibration = next_manual_current_calibration;
+            cal.current_lsb_user_selected = next_lsb;
+
+            // Εφαρμογή Thrust
+            cal.manual_thrust_calibration = next_man_thrust;
+            if (next_thrust_calibration_factor != 0) cal.thrust_calibration_factor = next_thrust_calibration_factor;
+            cal.direction_sign = next_direction_sign;
+            cal.tare_newton_offset = next_tare_offset;
+
+            // Εφαρμογή Torque
+            cal.manual_torque_calibration = next_man_torque;
+            if (next_torque_calibration_factor != 0) cal.torque_calibration_factor = next_torque_calibration_factor;
+            cal.tare_torque_offset = next_tare_torque_offset;
+
+            backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
+            qDebug() << "Calibration Updated: LSB =" << cal.current_lsb_user_selected
+                << " Thrust Cal =" << cal.thrust_calibration_factor
+                << " Torque Cal =" << cal.torque_calibration_factor;
+
+            cal_window->close();
         });
 
     cal_window->show();
