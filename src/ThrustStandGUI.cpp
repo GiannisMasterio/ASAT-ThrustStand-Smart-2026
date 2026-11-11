@@ -11,6 +11,9 @@ ThrustStandGUI::ThrustStandGUI(QWidget* parent) : QMainWindow(parent)
     setupExperimentFields();
     loadSettings();
 
+    if (backend_handler->registered_controllers.contains(active_controller_name))
+        backend_handler->setActiveController(active_controller_name);
+
     setWindowTitle(WINDOW_NAME);
     resize(RES_WIDTH, RES_HEIGHT);
     setWindowIcon(QIcon(ICONPATH));
@@ -315,7 +318,7 @@ void ThrustStandGUI::calibrate_parameters_window() {
     QWidget* cal_window = new QWidget(nullptr, Qt::Window);
     cal_window->setObjectName("ModernDialog");
     cal_window->setWindowTitle("Sensor Calibration");
-    cal_window->setMinimumSize(560, 850); // Ελαφρώς μεγαλύτερο ύψος για να χωρέσει το Torque
+    cal_window->setMinimumSize(560, 850);
     cal_window->setWindowModality(Qt::ApplicationModal);
     cal_window->setAttribute(Qt::WA_DeleteOnClose);
     cal_window->setAttribute(Qt::WA_StyledBackground, true);
@@ -362,7 +365,7 @@ void ThrustStandGUI::calibrate_parameters_window() {
     auto makeNumberField = [cal_window](double value, int decimals) {
         QLineEdit* e = new QLineEdit(QString::number(value, 'f', decimals), cal_window);
         e->setMinimumHeight(40);
-        auto* v = new QDoubleValidator(-1000000.0, 1000000.0, 10, e);
+        QDoubleValidator* v = new QDoubleValidator(-10000000.0, 10000000.0, 10, e);
         v->setNotation(QDoubleValidator::StandardNotation);
         v->setLocale(QLocale::c());
         e->setValidator(v);
@@ -370,7 +373,7 @@ void ThrustStandGUI::calibrate_parameters_window() {
         };
 
     // --- Επικεφαλίδα ---
-    QLabel* header = new QLabel("SENSOR CALIBRATION", cal_window);
+    QLabel* header = new QLabel("SENSOR CALIBRATION (PC-SIDE)", cal_window);
     header->setObjectName("DialogHeader");
     QFont hf("Segoe UI", 15, QFont::DemiBold);
     hf.setLetterSpacing(QFont::AbsoluteSpacing, 3);
@@ -383,7 +386,7 @@ void ThrustStandGUI::calibrate_parameters_window() {
     mainLayout->addWidget(makeGroupTitle("CURRENT"));
     mainLayout->addSpacing(4);
 
-    QCheckBox* checkManualCurrent = new QCheckBox("Enable Manual Current Calibration", cal_window);
+    QCheckBox* checkManualCurrent = new QCheckBox("Enable PC-Side Current Calibration", cal_window);
     checkManualCurrent->setChecked(cal.manual_current_calibration);
     checkManualCurrent->setCursor(Qt::PointingHandCursor);
     checkManualCurrent->setMinimumHeight(34);
@@ -403,24 +406,20 @@ void ThrustStandGUI::calibrate_parameters_window() {
     mainLayout->addWidget(makeGroupTitle("THRUST (LOAD CELL)"));
     mainLayout->addSpacing(4);
 
-    QCheckBox* checkManualThrust = new QCheckBox("Enable Manual Thrust Calibration", cal_window);
+    QCheckBox* checkManualThrust = new QCheckBox("Enable PC-Side Thrust Calibration", cal_window);
     checkManualThrust->setChecked(cal.manual_thrust_calibration);
     checkManualThrust->setCursor(Qt::PointingHandCursor);
     checkManualThrust->setMinimumHeight(34);
     mainLayout->addWidget(checkManualThrust);
 
-    mainLayout->addWidget(makeSectionLabel("THRUST CALIBRATION FACTOR"));
+    mainLayout->addWidget(makeSectionLabel("THRUST CALIBRATION FACTOR (STEPS/GRAM)"));
     QLineEdit* editThrustCalibrationFactor = makeNumberField(cal.thrust_calibration_factor, 6);
     mainLayout->addWidget(editThrustCalibrationFactor);
-    mainLayout->addWidget(makeHint(QString("ESP/Arduino default thrust calibration factor: %1")
-        .arg(cal.esp_thrust_calibration_factor, 0, 'f', 4)));
     mainLayout->addSpacing(6);
 
-    mainLayout->addWidget(makeSectionLabel("TARE NEWTON OFFSET"));
-    QLineEdit* editTareNewtonOffset = makeNumberField(cal.tare_newton_offset, 8);
+    mainLayout->addWidget(makeSectionLabel("TARE OFFSET (RAW ZERO VALUE)"));
+    QLineEdit* editTareNewtonOffset = makeNumberField(cal.tare_newton_offset, 2);
     mainLayout->addWidget(editTareNewtonOffset);
-    mainLayout->addWidget(makeHint(QString("ESP/Arduino tare Newton offset: %1")
-        .arg(cal.tare_newton_offset, 0, 'f', 2)));
     mainLayout->addSpacing(6);
 
     mainLayout->addWidget(makeSectionLabel("ROTATION DIRECTION"));
@@ -440,7 +439,7 @@ void ThrustStandGUI::calibrate_parameters_window() {
     mainLayout->addWidget(makeGroupTitle("TORQUE (LOAD CELLS)"));
     mainLayout->addSpacing(4);
 
-    QCheckBox* checkManualTorque = new QCheckBox("Enable Manual Torque Calibration", cal_window);
+    QCheckBox* checkManualTorque = new QCheckBox("Enable PC-Side Torque Calibration", cal_window);
     checkManualTorque->setChecked(cal.manual_torque_calibration);
     checkManualTorque->setCursor(Qt::PointingHandCursor);
     checkManualTorque->setMinimumHeight(34);
@@ -449,15 +448,11 @@ void ThrustStandGUI::calibrate_parameters_window() {
     mainLayout->addWidget(makeSectionLabel("TORQUE CALIBRATION FACTOR"));
     QLineEdit* editTorqueCalibrationFactor = makeNumberField(cal.torque_calibration_factor, 6);
     mainLayout->addWidget(editTorqueCalibrationFactor);
-    mainLayout->addWidget(makeHint(QString("ESP/Arduino default torque cal factor: %1")
-        .arg(cal.esp_torque_calibration_factor, 0, 'f', 4)));
     mainLayout->addSpacing(6);
 
-    mainLayout->addWidget(makeSectionLabel("TARE TORQUE OFFSET"));
-    QLineEdit* editTareTorqueOffset = makeNumberField(cal.tare_torque_offset, 8);
+    mainLayout->addWidget(makeSectionLabel("TARE TORQUE OFFSET (RAW ZERO VALUE)"));
+    QLineEdit* editTareTorqueOffset = makeNumberField(cal.tare_torque_offset, 2);
     mainLayout->addWidget(editTareTorqueOffset);
-    mainLayout->addWidget(makeHint(QString("ESP/Arduino tare torque offset: 0.00")));
-    mainLayout->addSpacing(6);
 
     mainLayout->addStretch();
 
@@ -475,52 +470,49 @@ void ThrustStandGUI::calibrate_parameters_window() {
         cal_window]() {
 
             // Διαβάζουμε τις τιμές του UI
-            bool  next_manual_current_calibration = checkManualCurrent->isChecked();
+            bool  next_manual_current = checkManualCurrent->isChecked();
             float next_lsb = editLsbSelected->text().toFloat();
 
-            bool  next_man_thrust = checkManualThrust->isChecked();
-            float next_thrust_calibration_factor = editThrustCalibrationFactor->text().toFloat();
-            float next_direction_sign = comboDirection->currentData().toFloat();
-            float next_tare_offset = editTareNewtonOffset->text().toFloat();
+            bool  next_manual_thrust = checkManualThrust->isChecked();
+            float next_thrust_factor = editThrustCalibrationFactor->text().toFloat();
+            float next_direction = comboDirection->currentData().toFloat();
+            float next_tare_thrust = editTareNewtonOffset->text().toFloat();
 
-            bool  next_man_torque = checkManualTorque->isChecked();
-            float next_torque_calibration_factor = editTorqueCalibrationFactor->text().toFloat();
-            float next_tare_torque_offset = editTareTorqueOffset->text().toFloat();
+            bool  next_manual_torque = checkManualTorque->isChecked();
+            float next_torque_factor = editTorqueCalibrationFactor->text().toFloat();
+            float next_tare_torque = editTareTorqueOffset->text().toFloat();
 
-            // Έλεγχος αν άλλαξε οτιδήποτε για να βγάλουμε το εικονίδιο save
-            if (cal.manual_current_calibration != next_manual_current_calibration ||
+            // Έλεγχος αν άλλαξε οτιδήποτε για το Unsaved Indicator
+            if (cal.manual_current_calibration != next_manual_current ||
                 cal.current_lsb_user_selected != next_lsb ||
-                cal.manual_thrust_calibration != next_man_thrust ||
-                (cal.thrust_calibration_factor != next_thrust_calibration_factor && next_thrust_calibration_factor != 0) ||
-                cal.direction_sign != next_direction_sign ||
-                cal.tare_newton_offset != next_tare_offset ||
-                cal.manual_torque_calibration != next_man_torque ||
-                (cal.torque_calibration_factor != next_torque_calibration_factor && next_torque_calibration_factor != 0) ||
-                cal.tare_torque_offset != next_tare_torque_offset)
+                cal.manual_thrust_calibration != next_manual_thrust ||
+                (cal.thrust_calibration_factor != next_thrust_factor && next_thrust_factor != 0) ||
+                cal.direction_sign != next_direction ||
+                cal.tare_newton_offset != next_tare_thrust ||
+                cal.manual_torque_calibration != next_manual_torque ||
+                (cal.torque_calibration_factor != next_torque_factor && next_torque_factor != 0) ||
+                cal.tare_torque_offset != next_tare_torque)
             {
                 backend_handler->unsaved_settings_changes = true;
                 this->updateBottomToolbar();
             }
 
             // Εφαρμογή Current
-            cal.manual_current_calibration = next_manual_current_calibration;
+            cal.manual_current_calibration = next_manual_current;
             cal.current_lsb_user_selected = next_lsb;
 
             // Εφαρμογή Thrust
-            cal.manual_thrust_calibration = next_man_thrust;
-            if (next_thrust_calibration_factor != 0) cal.thrust_calibration_factor = next_thrust_calibration_factor;
-            cal.direction_sign = next_direction_sign;
-            cal.tare_newton_offset = next_tare_offset;
+            cal.manual_thrust_calibration = next_manual_thrust;
+            if (next_thrust_factor != 0) cal.thrust_calibration_factor = next_thrust_factor;
+            cal.direction_sign = next_direction;
+            cal.tare_newton_offset = next_tare_thrust;
 
             // Εφαρμογή Torque
-            cal.manual_torque_calibration = next_man_torque;
-            if (next_torque_calibration_factor != 0) cal.torque_calibration_factor = next_torque_calibration_factor;
-            cal.tare_torque_offset = next_tare_torque_offset;
+            cal.manual_torque_calibration = next_manual_torque;
+            if (next_torque_factor != 0) cal.torque_calibration_factor = next_torque_factor;
+            cal.tare_torque_offset = next_tare_torque;
 
             backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
-            qDebug() << "Calibration Updated: LSB =" << cal.current_lsb_user_selected
-                << " Thrust Cal =" << cal.thrust_calibration_factor
-                << " Torque Cal =" << cal.torque_calibration_factor;
 
             cal_window->close();
         });
@@ -632,14 +624,13 @@ void ThrustStandGUI::tune_controller_window() {
 
     connect(selectControllerBox, &QComboBox::currentTextChanged, tune_controller_window, populateFields);
 
-    QString initialController = "Step Controller"; // fallback
-    for (auto it = backend_handler->registered_controllers.constBegin(); it != backend_handler->registered_controllers.constEnd(); ++it) {
-        if (it.value() == backend_handler->active_controller) {
-            initialController = it.key();
-            break;
-        }
-    }
+    QString initialController = active_controller_name;
+    if (!backend_handler->registered_controllers.contains(initialController))
+        initialController = selectControllerBox->itemText(0);
+
+    selectControllerBox->blockSignals(true);
     selectControllerBox->setCurrentText(initialController);
+    selectControllerBox->blockSignals(false);
     populateFields(initialController);
 
     mainLayout->addStretch();
@@ -663,7 +654,7 @@ void ThrustStandGUI::tune_controller_window() {
             }
 
             QVector<QPair<QString, double>> updated_params;
-            bool changed = (backend_handler->active_controller != ctrl);
+            bool changed = (active_controller_name != selectedName);
 
             auto& c = backend_handler->ctrl_cfg;
             auto& cfg = backend_handler->cfg;
@@ -693,6 +684,9 @@ void ThrustStandGUI::tune_controller_window() {
 
             ctrl->set_new_parameters(updated_params);
             this->backend_handler->setActiveController(selectedName);
+
+            active_controller_name = selectedName;
+            updateControllerIndicator();
 
             // 3. Αν υπήρξε αλλαγή, ενεργοποιούμε το κουμπί Save στο toolbar
             if (changed) {
@@ -826,6 +820,21 @@ QFrame* ThrustStandGUI::createBottomToolbar() {
     toolbarLayout->addWidget(createIcon(stop_motor_icon_path, StopMotor));
     toolbarLayout->addWidget(createIcon(status_icon_path, Status));
     toolbarLayout->addWidget(createIcon(logging_icon_path, Logging));
+    controllerIndicator = new QLabel();
+    controllerIndicator->setObjectName("ControllerPill");
+    controllerIndicator->setAlignment(Qt::AlignCenter);
+    controllerIndicator->setFixedHeight(36);
+    controllerIndicator->setMinimumWidth(170);
+    controllerIndicator->setToolTip("Active controller");
+    controllerIndicator->setStyleSheet(
+        "QLabel#ControllerPill {"
+        "  background: rgba(30,144,255,28); color: #7dc3ff;"
+        "  border: 1px solid rgba(30,144,255,120); border-radius: 18px;"
+        "  padding: 0 16px; font-family: 'Segoe UI'; font-size: 14px; font-weight: 700;"
+        "}");
+    toolbarLayout->addSpacing(8);
+    toolbarLayout->addWidget(controllerIndicator);
+    updateControllerIndicator();
 
     toolbarLayout->addStretch(2);
 
@@ -862,6 +871,11 @@ QFrame* ThrustStandGUI::createBottomToolbar() {
     toolbarLayout->addWidget(createIcon(SETTINGSICONPATH, Settings));
 
     return toolbarFrame;
+}
+
+void ThrustStandGUI::updateControllerIndicator() {
+    if (controllerIndicator)
+        controllerIndicator->setText("●  " + active_controller_name.toUpper());
 }
 
 void ThrustStandGUI::updateBottomToolbar() {
@@ -1135,9 +1149,25 @@ void ThrustStandGUI::setupSettingsFields() {
         {"Wait After Thrust (ms):", "", "", true, &cfg.record_data_wait_time_ms, SettingsElements::Int},
         {"Current Limit (A):", "", "", true, &cfg.current_limit, SettingsElements::Double},
 
-        // --- Calibration ---
-        {"Thrust Offset (N):", "", "", true, &cal.thrust_offset, SettingsElements::Double},
-        {"Current Offset (A):", "", "", true, &cal.current_offset, SettingsElements::Double},
+        // ==========================================
+        // --- CALIBRATION (NEW FIELDS FOR SAVING)---
+        // ==========================================
+        { "Thrust Offset (N):", "", "", true, &cal.thrust_offset, SettingsElements::Double },
+        { "Current Offset (A):", "", "", true, &cal.current_offset, SettingsElements::Double },
+
+        // Manual Bools
+        { "Manual Current Calibration:", "", "", false, &cal.manual_current_calibration, SettingsElements::Bool },
+        { "Manual Thrust Calibration:", "", "", false, &cal.manual_thrust_calibration, SettingsElements::Bool },
+        { "Manual Torque Calibration:", "", "", false, &cal.manual_torque_calibration, SettingsElements::Bool },
+
+        // Tare & Factors
+        { "Thrust Cal Factor:", "", "", true, &cal.thrust_calibration_factor, SettingsElements::Double },
+        { "Thrust Tare (RAW):", "", "", true, &cal.tare_newton_offset, SettingsElements::Double },
+        { "Direction Sign:", "", "", true, &cal.direction_sign, SettingsElements::Double },
+        { "Torque Cal Factor:", "", "", true, &cal.torque_calibration_factor, SettingsElements::Double },
+        { "Torque Tare (RAW):", "", "", true, &cal.tare_torque_offset, SettingsElements::Double },
+        { "Current LSB Selected:", "", "", true, &cal.current_lsb_user_selected, SettingsElements::Double },
+        // ==========================================
 
         // --- Toggles / Booleans ---
         {"Sound:", "", "", false, &(backend_handler->soundOn), SettingsElements::Bool},
@@ -1156,6 +1186,8 @@ void ThrustStandGUI::setupSettingsFields() {
         { "ADRC: b0 (Gain):", "", "System Gain", true, &ctrl.b0, SettingsElements::Double },
         { "ADRC: Wc (Bandwidth):", "", "Controller Bandwidth", true, &ctrl.wc, SettingsElements::Double },
         { "ADRC: Wo (Observer):", "", "Observer Bandwidth", true, &ctrl.wo, SettingsElements::Double },
+
+        { "Active Controller:", "", "", false, &active_controller_name, SettingsElements::String }
     };
 }
 
@@ -1209,6 +1241,19 @@ void ThrustStandGUI::chooseSettings() {
     int ctrlCellCount = 0;
 
     for (auto& field : settings_fields) {
+
+        if (field.labeltext == "Manual Current Calibration:" ||
+            field.labeltext == "Manual Thrust Calibration:" ||
+            field.labeltext == "Manual Torque Calibration:" ||
+            field.labeltext == "Thrust Cal Factor:" ||
+            field.labeltext == "Thrust Tare (RAW):" ||
+            field.labeltext == "Direction Sign:" ||
+            field.labeltext == "Torque Cal Factor:" ||
+            field.labeltext == "Torque Tare (RAW):" ||
+            field.labeltext == "Current LSB Selected:") {
+            continue;
+        }
+
         QString shownText = field.labeltext;
         if (shownText.endsWith(":")) shownText.chop(1);
         field.label = new QLabel(shownText.toUpper(), settings_window);
@@ -1217,8 +1262,8 @@ void ThrustStandGUI::chooseSettings() {
         lf.setLetterSpacing(QFont::AbsoluteSpacing, 1.5);
         field.label->setFont(lf);
 
-        // Έλεγχος αν το πεδίο ανήκει στους Controllers (πιάνει ΚΑΙ τα σκέτα Kp, Ki, Kd, Clamping!)
         bool isControllerField = field.labeltext.startsWith("PID") ||
+            field.labeltext == "Active Controller:" ||
             field.labeltext.startsWith("ADRC") ||
             field.labeltext.startsWith("Step") ||
             field.labeltext.startsWith("Throttle Increase") ||
@@ -1238,6 +1283,13 @@ void ThrustStandGUI::chooseSettings() {
         else if (field.labeltext == "Data Source:") {
             QComboBox* comboBox = new QComboBox(settings_window);
             comboBox->addItems({ "MQTT", "SERIAL" });
+            comboBox->setCurrentText(*static_cast<QString*>(field.targetVar));
+            comboBox->setMinimumHeight(40);
+            field.entry = comboBox;
+        }
+        else if (field.labeltext == "Active Controller:") {
+            QComboBox* comboBox = new QComboBox(settings_window);
+            comboBox->addItems(backend_handler->registered_controllers.keys());
             comboBox->setCurrentText(*static_cast<QString*>(field.targetVar));
             comboBox->setMinimumHeight(40);
             field.entry = comboBox;
@@ -1331,6 +1383,7 @@ void ThrustStandGUI::chooseSettings() {
         double old_current_offset = backend_handler->cal.current_offset;
         QString old_rx_topic = backend_handler->mqttcfg.mqtt_receive_topic;
         QString old_tx_topic = backend_handler->mqttcfg.mqtt_send_topic;
+        const QString old_controller_name = active_controller_name;
 
         bool changed = false;
 
@@ -1341,7 +1394,7 @@ void ThrustStandGUI::chooseSettings() {
                 bool* target = static_cast<bool*>(field.targetVar);
                 if (*target != newVal) { *target = newVal; changed = true; }
             }
-            else if (field.labeltext == "Data Source:") {
+            else if (field.labeltext == "Data Source:" || field.labeltext == "Active Controller:") {
                 QComboBox* cb = qobject_cast<QComboBox*>(field.entry);
                 QString newVal = cb->currentText();
                 QString* target = static_cast<QString*>(field.targetVar);
@@ -1372,6 +1425,12 @@ void ThrustStandGUI::chooseSettings() {
             backend_handler->unsaved_settings_changes = true;
             this->updateBottomToolbar();
         }
+
+        if (active_controller_name != old_controller_name &&
+            backend_handler->registered_controllers.contains(active_controller_name)) {
+            backend_handler->setActiveController(active_controller_name);
+        }
+        updateControllerIndicator();
 
         // --- Ενημέρωση των Controllers με reference στο ctrl_cfg ---
         auto& ctrl = backend_handler->ctrl_cfg;
@@ -1544,10 +1603,10 @@ void ThrustStandGUI::loadSettings() {
     }
 
     file.close();
-    updateControllers();
-    backend_handler->audio_handler->setSoundStatus(backend_handler->soundOn);
 
+    this->updateControllers();
     this->updateBottomToolbar();
+    backend_handler->audio_handler->setSoundStatus(backend_handler->soundOn);
 
     qDebug() << "Settings loaded successfully!";
 }

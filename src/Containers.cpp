@@ -49,62 +49,44 @@ Containers::Containers(const QString& title, int titleSize, const QString& title
 void Containers::design() {
 
     QVBoxLayout* frameLayout = new QVBoxLayout(this);
-    frameLayout->setAlignment(Qt::AlignCenter);
-    frameLayout->setContentsMargins(24, 22, 24, 22);   // ήταν default
-    frameLayout->setSpacing(14);
-
-    if (containerGraphics().contains(quantity)) {
-        graphic = containerGraphics().value(quantity)(this);
-    }
+    frameLayout->setContentsMargins(24, 22, 24, 14);
+    frameLayout->setSpacing(10);
 
     const bool useGraphic = containerGraphics().contains(quantity);
-    if (!useGraphic) frameLayout->addStretch(1);
+    if (useGraphic) graphic = containerGraphics().value(quantity)(this);
 
-    frameLayout->addStretch(1);
-
-    // Τίτλος: κεφαλαία, απαλό γκρι, απόσταση γραμμάτων
+    // Τίτλος (το μέγεθος έρχεται από το titleSize όπως πριν)
     title_label = new QLabel(title_text.toUpper(), this);
     title_label->setAlignment(Qt::AlignCenter);
     QFont tf("Segoe UI", title_label_size, QFont::DemiBold);
     tf.setLetterSpacing(QFont::AbsoluteSpacing, 3);
     title_label->setFont(tf);
-    title_label->setStyleSheet("color: rgba(203,213,225,230); border: none; background: transparent;");
-    frameLayout->addWidget(title_label, 0, Qt::AlignCenter);
+    title_label->setStyleSheet("background: transparent; border: none; color: #cbd5e1;");
 
     if (useGraphic) {
-        double maxV = value_limit.value(quantity);
+        frameLayout->addWidget(title_label, 0, Qt::AlignHCenter);
 
-        if (quantity == "Throttle") {
-            maxV = 100.0;
-        }
-        else if (quantity == "RPM" && backend_handler->cfg.max_rpm > 0) {
-            maxV = backend_handler->cfg.max_rpm;
-        }
+        double maxV = value_limit.value(quantity);
+        if (quantity == "Throttle") maxV = 100.0;
+        else if (quantity == "RPM" && backend_handler->cfg.max_rpm > 0) maxV = backend_handler->cfg.max_rpm;
 
         graphic->setRange(0.0, maxV);
         graphic->setValue(toDisplayValue(value));
-
-        frameLayout->addWidget(graphic, 1);
+        graphic->setMinimumHeight(0);
+        graphic->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        frameLayout->addWidget(graphic, 1);   // παίρνει ό,τι περισσεύει, μικραίνει αν χρειαστεί
         return;
     }
 
-    // Τιμή + μονάδα
-    double shown = toDisplayValue(value);
+    frameLayout->addStretch(1);
+    frameLayout->addWidget(title_label, 0, Qt::AlignHCenter);
 
-    value_label = new QLabel(formatValueText(shown), this);
+    value_label = new QLabel(formatValueText(toDisplayValue(value)), this);
     value_label->setTextFormat(Qt::RichText);
     value_label->setAlignment(Qt::AlignCenter);
     value_label->setFont(QFont("Segoe UI"));
     value_label->setStyleSheet("border: none; background: transparent;");
     frameLayout->addWidget(value_label, 0, Qt::AlignCenter);
-
-    footer = new QWidget(this);
-    footer->setObjectName("CardFooter");
-    footer->setFixedHeight(44);
-    footer->setStyleSheet("QWidget#CardFooter { background: transparent; border: none; }");
-    QVBoxLayout* footerLayout = new QVBoxLayout(footer);
-    footerLayout->setContentsMargins(0, 0, 0, 0);
-    footerLayout->setAlignment(Qt::AlignCenter);
 
     if (has_bar) {
         progress_bar = new QProgressBar(this);
@@ -124,6 +106,7 @@ void Containers::design() {
 void Containers::setupControlElements() {
 
     control_frame = new QWidget(this);
+    control_frame->setFixedHeight(44);
     QHBoxLayout* controlLayout = new QHBoxLayout(control_frame);
     controlLayout->setSpacing(20);
     controlLayout->setAlignment(Qt::AlignCenter);

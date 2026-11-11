@@ -12,8 +12,8 @@
 #include <QCoreApplication>
 #include <QUrl>
 #include <algorithm>
-#include "mqttclient.h"
-#include "containers.h"
+#include "Mqttclient.h"
+#include "Containers.h"
 #include "graphcontainer.h"
 #include <QFrame>
 #include <QtSerialPort/QSerialPortInfo>
@@ -155,6 +155,8 @@ void BackendHandler::updateTelemetry(QMap<QString, double> value_keeper) {
     emit telemetryUpdated();
 }
 
+// CALIBRATION FUNCTIONS
+
 double BackendHandler::RPMFilter(double new_rpm) {
     rpm_buffer.push_back(new_rpm);
 
@@ -175,22 +177,27 @@ double BackendHandler::calibrate_current(double esp_current) {
     return new_current;
 }
 
-double BackendHandler::calibrate_thrust(double esp_newton) {
-    if (!cal.manual_thrust_calibration || cal.thrust_calibration_factor == 0) return esp_newton;
-    double esp_grams = esp_newton * 1000.0 / 9.81;
-    double raw_avg = cal.esp_actual_tare_offset - esp_grams * cal.esp_thrust_calibration_factor;
+double BackendHandler::calibrate_thrust(double raw_thrust) {
+    if (!cal.manual_thrust_calibration || cal.thrust_calibration_factor == 0) {
+        return raw_thrust;
+    }
 
-    double new_grams = cal.direction_sign * (raw_avg - cal.tare_newton_offset) / cal.thrust_calibration_factor;
-    double new_newton = (new_grams / 1000.0) * cal.gravity;
-    return new_newton;
+    double raw_net = raw_thrust - cal.tare_newton_offset;
+
+    double grams = raw_net / cal.thrust_calibration_factor;
+    double newton = (grams / 1000.0) * cal.gravity;
+
+    return newton * cal.direction_sign;
 }
 
-double BackendHandler::calibrate_torque(double esp_torque) {
+double BackendHandler::calibrate_torque(double raw_torque) {
+
     if (!cal.manual_torque_calibration || cal.torque_calibration_factor == 0) {
-        return esp_torque;
+        return raw_torque;
     }
-    double raw_val = esp_torque * cal.esp_torque_calibration_factor;
-    double new_torque = (raw_val - cal.tare_torque_offset) / cal.torque_calibration_factor;
+
+    double torque_net = raw_torque - cal.tare_torque_offset;
+    double new_torque = torque_net / cal.torque_calibration_factor;
 
     return new_torque;
 }

@@ -170,7 +170,7 @@ private:
     bool target_rpm_reached = false;
     bool ending_transition = false;
 
-    double battery_removed_voltage_value = 204.8;
+    double battery_removed_voltage_value = 12.8;
 
     int record_data_wait_time_ms = RECORD_DATA_WAIT_TIME_MS;
     int thrust_stab_wait_time_ms = THRUST_STAB_WAIT_TIME_MS;

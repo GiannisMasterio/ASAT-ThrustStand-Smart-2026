@@ -53,26 +53,27 @@ struct ExperimentConfig {
 };
 
 struct CalibrationConfig {
-    const float current_lsb_user_esp = 0.00003688f;
-    float current_lsb_user_selected = 0.00003688f;
-    bool manual_current_calibration = false;
+    // --- Current (Ρεύμα) ---
+    const float current_lsb_user_esp = 0.00003688f; // Εργοστασιακό default για αναφορά
+    float current_lsb_user_selected = 0.00003688f;  // Αυτό που επιλέγει ο χρήστης
+    double current_offset = 0.0;
+    bool manual_current_calibration = false;        // Διακόπτης ON/OFF για manual ρεύμα
 
-    const float esp_actual_tare_offset = 38468.909f;
-    const float esp_thrust_calibration_factor = 0.4485f;
-    float direction_sign = -1.0f;
+    // --- Thrust (Ώθηση) ---
     float thrust_calibration_factor = 0.4485f;
     float tare_newton_offset = 38468.909f;
-    bool manual_thrust_calibration = false;
+    float direction_sign = -1.0f;
+    double thrust_offset = 0.0;
+    bool manual_thrust_calibration = true;          // Διακόπτης ON/OFF για manual thrust
     bool auto_tare_thrust_at_begin = false;
 
-    bool manual_torque_calibration = false;
+    // --- Torque (Ροπή) ---
     float torque_calibration_factor = 1.0f;
-    float esp_torque_calibration_factor = 1.0f;
     float tare_torque_offset = 0.0f;
+    double torque_offset = 0.0;
+    bool manual_torque_calibration = true;          // Διακόπτης ON/OFF για manual torque
 
-    double thrust_offset = 0.0;
-    double current_offset = 0.0;
-	double torque_offset = 0.0;
+    // --- Physics ---
     float gravity = 9.81f;
 };
 

@@ -133,6 +133,10 @@ private:
     Containers* instantrpmGUI = nullptr;
     Containers* instantpowerGUI = nullptr;
 
+    QString active_controller_name = "Step Controller";   // fallback
+    QPointer<QLabel> controllerIndicator;
+
+    void updateControllerIndicator();
     QFrame* createBottomToolbar();
     void updateBottomToolbar();
     void updateArmedState(bool new_arm_status);

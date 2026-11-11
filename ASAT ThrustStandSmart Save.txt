@@ -80,3 +80,266 @@ ADRC b0 (Gain)                 : 30.00
 ADRC Wc (Bandwidth)            : 5.00
 ADRC Wo (Observer)             : 20.00
 ------------------------------------------------
+
+Last Save Settings Session: 11/11/2026 23:03:40
+Data Source                    : MQTT
+Receive Topic (Subscription)   : thrust-fromesp
+Send Topic (Publishing)        : thrust-toesp
+Propeller Name                 : 12x6
+Angle Of Attack (deg)          : 0.00
+Airspeed (m/sec)               : 0.00
+Min Throttle (us)              : 1130
+Max Throttle (us)              : 2000
+Max RPM                        : 10000
+RPM Clemency                   : 40
+RPM Step                       : 1000
+Thrust Stabilizing WaitTime (ms) : 3000
+Wait After Thrust (ms)         : 10000
+Current Limit (A)              : 40.00
+Thrust Offset (N)              : 0.00
+Current Offset (A)             : 0.00
+Sound                          : Yes
+Log Only On Experiment         : No
+RPM Filter                     : No
+Throttle Increase Step         : 1
+Kp                             : 0.50
+Ki                             : 0.05
+Kd                             : 0.01
+Clamping Authority             : 0.30
+ADRC b0 (Gain)                 : 30.00
+ADRC Wc (Bandwidth)            : 5.00
+ADRC Wo (Observer)             : 20.00
+------------------------------------------------
+
+Last Save Settings Session: 11/11/2026 23:20:46
+Data Source                    : MQTT
+Receive Topic (Subscription)   : thrust-fromesp
+Send Topic (Publishing)        : thrust-toesp
+Propeller Name                 : 12x6
+Angle Of Attack (deg)          : 0.00
+Airspeed (m/sec)               : 0.00
+Min Throttle (us)              : 1130
+Max Throttle (us)              : 2000
+Max RPM                        : 10000
+RPM Clemency                   : 40
+RPM Step                       : 1000
+Thrust Stabilizing WaitTime (ms) : 3000
+Wait After Thrust (ms)         : 10000
+Current Limit (A)              : 40.00
+Thrust Offset (N)              : 0.00
+Current Offset (A)             : 0.00
+Sound                          : Yes
+Log Only On Experiment         : No
+RPM Filter                     : No
+Throttle Increase Step         : 1
+Kp                             : 0.50
+Ki                             : 0.05
+Kd                             : 0.01
+Clamping Authority             : 0.30
+ADRC b0 (Gain)                 : 30.00
+ADRC Wc (Bandwidth)            : 5.00
+ADRC Wo (Observer)             : 20.00
+Active Controller              : Step Controller
+------------------------------------------------
+Data Source                    : MQTT
+Receive Topic (Subscription)   : thrust-fromesp
+Send Topic (Publishing)        : thrust-toesp
+Propeller Name                 : 12x6
+Angle Of Attack (deg)          : 0.00
+Airspeed (m/sec)               : 0.00
+Min Throttle (us)              : 1130
+Max Throttle (us)              : 2000
+Max RPM                        : 10000
+RPM Clemency                   : 40
+RPM Step                       : 1000
+Thrust Stabilizing WaitTime (ms) : 3000
+Wait After Thrust (ms)         : 10000
+Current Limit (A)              : 40.00
+Thrust Offset (N)              : 0.00
+Current Offset (A)             : 0.00
+Sound                          : Yes
+Log Only On Experiment         : No
+RPM Filter                     : No
+Throttle Increase Step         : 1
+Kp                             : 0.50
+Ki                             : 0.05
+Kd                             : 0.01
+Clamping Authority             : 0.30
+ADRC b0 (Gain)                 : 30.00
+ADRC Wc (Bandwidth)            : 5.00
+ADRC Wo (Observer)             : 20.00
+Active Controller              : Step Controller
+------------------------------------------------
+
+Last Save Settings Session: 11/11/2026 23:23:54
+Data Source                    : MQTT
+Receive Topic (Subscription)   : thrust-fromesp
+Send Topic (Publishing)        : thrust-toesp
+Propeller Name                 : 12x6
+Angle Of Attack (deg)          : 0.00
+Airspeed (m/sec)               : 0.00
+Min Throttle (us)              : 1130
+Max Throttle (us)              : 2000
+Max RPM                        : 10000
+RPM Clemency                   : 40
+RPM Step                       : 1000
+Thrust Stabilizing WaitTime (ms) : 3000
+Wait After Thrust (ms)         : 10000
+Current Limit (A)              : 40.00
+Thrust Offset (N)              : 0.00
+Current Offset (A)             : 0.00
+Sound                          : Yes
+Log Only On Experiment         : No
+RPM Filter                     : No
+Throttle Increase Step         : 1
+Kp                             : 0.50
+Ki                             : 0.05
+Kd                             : 0.01
+Clamping Authority             : 0.30
+ADRC b0 (Gain)                 : 30.00
+ADRC Wc (Bandwidth)            : 5.00
+ADRC Wo (Observer)             : 20.00
+Active Controller              : PID Controller
+------------------------------------------------
+
+Last Save Settings Session: 11/11/2026 23:24:05
+Data Source                    : MQTT
+Receive Topic (Subscription)   : thrust-fromesp
+Send Topic (Publishing)        : thrust-toesp
+Propeller Name                 : 12x6
+Angle Of Attack (deg)          : 0.00
+Airspeed (m/sec)               : 0.00
+Min Throttle (us)              : 1130
+Max Throttle (us)              : 2000
+Max RPM                        : 10000
+RPM Clemency                   : 40
+RPM Step                       : 1000
+Thrust Stabilizing WaitTime (ms) : 3000
+Wait After Thrust (ms)         : 10000
+Current Limit (A)              : 40.00
+Thrust Offset (N)              : 0.00
+Current Offset (A)             : 0.00
+Sound                          : Yes
+Log Only On Experiment         : No
+RPM Filter                     : No
+Throttle Increase Step         : 1
+Kp                             : 0.50
+Ki                             : 0.05
+Kd                             : 0.01
+Clamping Authority             : 0.30
+ADRC b0 (Gain)                 : 30.00
+ADRC Wc (Bandwidth)            : 5.00
+ADRC Wo (Observer)             : 20.00
+Active Controller              : ADRC Controller
+------------------------------------------------
+
+Last Save Settings Session: 11/11/2026 23:43:52
+Data Source                    : MQTT
+Receive Topic (Subscription)   : thrust-fromesp
+Send Topic (Publishing)        : thrust-toesp
+Propeller Name                 : 12x6
+Angle Of Attack (deg)          : 0.00
+Airspeed (m/sec)               : 0.00
+Min Throttle (us)              : 1130
+Max Throttle (us)              : 2000
+Max RPM                        : 10000
+RPM Clemency                   : 40
+RPM Step                       : 1000
+Thrust Stabilizing WaitTime (ms) : 3000
+Wait After Thrust (ms)         : 10000
+Current Limit (A)              : 40.00
+Thrust Offset (N)              : 0.00
+Current Offset (A)             : 0.00
+Sound                          : Yes
+Log Only On Experiment         : No
+RPM Filter                     : No
+Throttle Increase Step         : 1
+Kp                             : 0.50
+Ki                             : 0.05
+Kd                             : 0.01
+Clamping Authority             : 0.30
+ADRC b0 (Gain)                 : 30.00
+ADRC Wc (Bandwidth)            : 5.00
+ADRC Wo (Observer)             : 20.00
+Active Controller              : ADRC Controller
+------------------------------------------------
+
+Last Save Settings Session: 11/11/2026 23:49:10
+Data Source                    : MQTT
+Receive Topic (Subscription)   : thrust-fromesp
+Send Topic (Publishing)        : thrust-toesp
+Propeller Name                 : 12x6
+Angle Of Attack (deg)          : 0.00
+Airspeed (m/sec)               : 0.00
+Min Throttle (us)              : 1130
+Max Throttle (us)              : 2000
+Max RPM                        : 10000
+RPM Clemency                   : 40
+RPM Step                       : 1000
+Thrust Stabilizing WaitTime (ms) : 3000
+Wait After Thrust (ms)         : 10000
+Current Limit (A)              : 40.00
+Thrust Offset (N)              : 0.00
+Current Offset (A)             : 0.00
+Manual Current Calibration     : No
+Manual Thrust Calibration      : Yes
+Manual Torque Calibration      : No
+Thrust Cal Factor              : 28907053592089753078772986483310592.00
+Thrust Tare (RAW)              : -0.01
+Direction Sign                 : 0.00
+Torque Cal Factor              : 0.00
+Torque Tare (RAW)              : 0.00
+Current LSB Selected           : 0.00
+Sound                          : Yes
+Log Only On Experiment         : No
+RPM Filter                     : No
+Throttle Increase Step         : 1
+Kp                             : 0.50
+Ki                             : 0.05
+Kd                             : 0.01
+Clamping Authority             : 0.30
+ADRC b0 (Gain)                 : 30.00
+ADRC Wc (Bandwidth)            : 5.00
+ADRC Wo (Observer)             : 20.00
+Active Controller              : ADRC Controller
+------------------------------------------------
+
+Last Save Settings Session: 11/11/2026 23:49:23
+Data Source                    : MQTT
+Receive Topic (Subscription)   : thrust-fromesp
+Send Topic (Publishing)        : thrust-toesp
+Propeller Name                 : 12x6
+Angle Of Attack (deg)          : 0.00
+Airspeed (m/sec)               : 0.00
+Min Throttle (us)              : 1130
+Max Throttle (us)              : 2000
+Max RPM                        : 10000
+RPM Clemency                   : 40
+RPM Step                       : 1000
+Thrust Stabilizing WaitTime (ms) : 3000
+Wait After Thrust (ms)         : 10000
+Current Limit (A)              : 40.00
+Thrust Offset (N)              : 0.00
+Current Offset (A)             : 0.00
+Manual Current Calibration     : No
+Manual Thrust Calibration      : Yes
+Manual Torque Calibration      : Yes
+Thrust Cal Factor              : 19991592765156580362988948309854388224.00
+Thrust Tare (RAW)              : -0.01
+Direction Sign                 : 0.00
+Torque Cal Factor              : 0.00
+Torque Tare (RAW)              : 0.00
+Current LSB Selected           : 0.00
+Sound                          : Yes
+Log Only On Experiment         : No
+RPM Filter                     : No
+Throttle Increase Step         : 1
+Kp                             : 0.50
+Ki                             : 0.05
+Kd                             : 0.01
+Clamping Authority             : 0.30
+ADRC b0 (Gain)                 : 30.00
+ADRC Wc (Bandwidth)            : 5.00
+ADRC Wo (Observer)             : 20.00
+Active Controller              : ADRC Controller
+------------------------------------------------
