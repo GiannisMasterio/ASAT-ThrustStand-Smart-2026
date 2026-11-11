@@ -69,6 +69,7 @@ void BackendHandler::receiveTelemetry(const QString& data, QString source) {
     if (source != selected_data_source) return;
 
     if (selected_data_source == "MQTT") {
+
         QString cleanData = data.trimmed().replace(" ", "");
         QMap<QString, double> value_keeper;
         QStringList parts = cleanData.split(",");
