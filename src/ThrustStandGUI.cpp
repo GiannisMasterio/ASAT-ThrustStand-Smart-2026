@@ -1197,10 +1197,15 @@ void ThrustStandGUI::chooseSettings() {
     auto& tel = backend_handler->tel;
     auto& mqttcfg = backend_handler->mqttcfg;
 
+    for (auto& field : settings_fields) {
+        field.entry = nullptr;
+        field.label = nullptr;
+    }
+
     QWidget* settings_window = new QWidget(nullptr, Qt::Window);
     settings_window->setObjectName("ModernDialog");
     settings_window->setWindowTitle("Settings");
-    settings_window->setFixedSize(620, 780); // 620 πλάτος για να χωράνε όλα τα tabs χωρίς βελάκια!
+    settings_window->setFixedSize(620, 780);
     settings_window->setWindowModality(Qt::ApplicationModal);
     settings_window->setAttribute(Qt::WA_DeleteOnClose);
     settings_window->setAttribute(Qt::WA_StyledBackground, true);
@@ -1241,7 +1246,6 @@ void ThrustStandGUI::chooseSettings() {
     int ctrlCellCount = 0;
 
     for (auto& field : settings_fields) {
-
         if (field.labeltext == "Manual Current Calibration:" ||
             field.labeltext == "Manual Thrust Calibration:" ||
             field.labeltext == "Manual Torque Calibration:" ||
@@ -1314,7 +1318,6 @@ void ThrustStandGUI::chooseSettings() {
             field.entry = lineEdit;
         }
 
-        // --- Κατανομή στα Tabs ---
         if (isControllerField) {
             QWidget* cell = new QWidget(settings_window);
             QVBoxLayout* cl = new QVBoxLayout(cell);
@@ -1370,6 +1373,8 @@ void ThrustStandGUI::chooseSettings() {
 
         QString new_rx, new_tx;
         for (const auto& f : settings_fields) {
+            if (!f.entry) continue;
+
             if (f.labeltext == "Receive Topic (Subscription):") new_rx = qobject_cast<QLineEdit*>(f.entry)->text().trimmed();
             if (f.labeltext == "Send Topic (Publishing):") new_tx = qobject_cast<QLineEdit*>(f.entry)->text().trimmed();
         }
@@ -1388,35 +1393,43 @@ void ThrustStandGUI::chooseSettings() {
         bool changed = false;
 
         for (const auto& field : settings_fields) {
+            if (!field.entry) continue;
+
             if (field.type == SettingsElements::Bool) {
                 QCheckBox* cb = qobject_cast<QCheckBox*>(field.entry);
-                bool newVal = cb->isChecked();
-                bool* target = static_cast<bool*>(field.targetVar);
-                if (*target != newVal) { *target = newVal; changed = true; }
+                if (cb) {
+                    bool newVal = cb->isChecked();
+                    bool* target = static_cast<bool*>(field.targetVar);
+                    if (*target != newVal) { *target = newVal; changed = true; }
+                }
             }
             else if (field.labeltext == "Data Source:" || field.labeltext == "Active Controller:") {
                 QComboBox* cb = qobject_cast<QComboBox*>(field.entry);
-                QString newVal = cb->currentText();
-                QString* target = static_cast<QString*>(field.targetVar);
-                if (*target != newVal) { *target = newVal; changed = true; }
+                if (cb) {
+                    QString newVal = cb->currentText();
+                    QString* target = static_cast<QString*>(field.targetVar);
+                    if (*target != newVal) { *target = newVal; changed = true; }
+                }
             }
             else {
                 QLineEdit* le = qobject_cast<QLineEdit*>(field.entry);
-                QString textVal = le->text().trimmed();
+                if (le) {
+                    QString textVal = le->text().trimmed();
 
-                if (field.type == SettingsElements::String) {
-                    QString* target = static_cast<QString*>(field.targetVar);
-                    if (*target != textVal) { *target = textVal; changed = true; }
-                }
-                else if (field.type == SettingsElements::Int) {
-                    int newVal = textVal.toInt();
-                    int* target = static_cast<int*>(field.targetVar);
-                    if (*target != newVal) { *target = newVal; changed = true; }
-                }
-                else if (field.type == SettingsElements::Double) {
-                    double newVal = textVal.replace(",", ".").toDouble();
-                    double* target = static_cast<double*>(field.targetVar);
-                    if (*target != newVal) { *target = newVal; changed = true; }
+                    if (field.type == SettingsElements::String) {
+                        QString* target = static_cast<QString*>(field.targetVar);
+                        if (*target != textVal) { *target = textVal; changed = true; }
+                    }
+                    else if (field.type == SettingsElements::Int) {
+                        int newVal = textVal.toInt();
+                        int* target = static_cast<int*>(field.targetVar);
+                        if (*target != newVal) { *target = newVal; changed = true; }
+                    }
+                    else if (field.type == SettingsElements::Double) {
+                        double newVal = textVal.replace(",", ".").toDouble();
+                        double* target = static_cast<double*>(field.targetVar);
+                        if (*target != newVal) { *target = newVal; changed = true; }
+                    }
                 }
             }
         }
@@ -1432,7 +1445,6 @@ void ThrustStandGUI::chooseSettings() {
         }
         updateControllerIndicator();
 
-        // --- Ενημέρωση των Controllers με reference στο ctrl_cfg ---
         auto& ctrl = backend_handler->ctrl_cfg;
 
         if (backend_handler->step_controller) {
