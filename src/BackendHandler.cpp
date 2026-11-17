@@ -371,6 +371,12 @@ void BackendHandler::readSerialData() {
         if (!data.isEmpty()) {
             QString serialData = QString::fromUtf8(data).trimmed();
             qDebug() << "Full Line Received:" << serialData;
+
+            if (!process_begin) {
+                process_begin = true;
+                playAudio(100, "TelemetryConnected"); // Προαιρετικά, για να ακούσεις ότι συνδέθηκε
+            }
+
             receiveTelemetry(serialData, "SERIAL");
         }
     }
