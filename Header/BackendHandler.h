@@ -4,15 +4,9 @@
 #include <random>
 #include "constants.h"
 #include "AutoControl.h"
-#include "audiohandler.h"
+#include "AudioHandler.h"
 #include <QSerialPort>
 #include "varstate.h"
-
-class QWidget;
-class QPushButton;
-class QSlider;
-class QLabel;
-class QDialog; 
 
 struct LogEntry {
     double timeInSeconds;
@@ -43,8 +37,6 @@ public:
         return static_cast<ExperimentStage>(experiment_stage);
     }
 
-    QSlider* slider;
-    QPushButton* slider_opener_button = nullptr;
     QMap<QString, QPair<unsigned int, unsigned int>> mode_value_limits;
 
     void execute_experiment();
@@ -66,6 +58,10 @@ public:
     AudioHandler* audio_handler = nullptr;
 
     QMap<QString, Controller*> registered_controllers; 
+
+    QString getMode() const { return mode; }
+    double getTargetRpm() const { return target_rpm; }
+    void applySliderControlValue(int value);
 
     void registerController(const QString& name, Controller* controller);
     void setActiveController(const QString& name);
@@ -159,9 +155,6 @@ protected:
 
     QString mode;
 
-    QDialog* slider_window = nullptr; 
-    QLabel* slider_value_label = nullptr;
-
 private:
     QString function_mode = "Basic";
     bool experiment_just_started = true;
@@ -193,7 +186,7 @@ private:
 
     void publishThrottle(int new_throttle);
     void changeExperimentStage(int new_experiment_stage);
-    void createSliderWindow();
+   
     void initialize_stabilizing_thrust();
 
 signals:
@@ -209,12 +202,13 @@ signals:
 	void requestWindTunnelTransition();
     void loggingStateChanged(bool logging);
 
+    void requestSliderWindow();
+
 public slots:
 
     void manualToggleBasicMode(int state);
     void handleAutoMode();
-    void openSliderWindow();
-    void updateSliderValue(int sliderValue);
+    
     void setValue(double newValue) { slider_stored_value = newValue; }
 
     void updateMqttSendTopic(const QString& newTopic);

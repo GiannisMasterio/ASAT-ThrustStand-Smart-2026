@@ -1,21 +1,13 @@
-﻿#include "backendhandler.h"
-#include <QPushButton>
-#include <QLabel>
-#include <QDialog>
-#include <QVBoxLayout>
+﻿#include "BackendHandler.h"
+#include "Mqttclient.h"
+#include <QFileDialog>
+#include <QMessageBox>
 #include <QSlider>
 #include <QLineEdit>
 #include <QDoubleValidator>
-#include <QFileDialog>
-#include <QMessageBox>
 #include <QDesktopServices>
 #include <QCoreApplication>
-#include <QUrl>
 #include <algorithm>
-#include "Mqttclient.h"
-#include "Containers.h"
-#include "graphcontainer.h"
-#include <QFrame>
 #include <QtSerialPort/QSerialPortInfo>
 
 using namespace std;
@@ -499,34 +491,22 @@ void BackendHandler::setSoundStatus(bool sound_status) {
 // BASIC MODE FUNCTIONS 
 
 void BackendHandler::manualToggleBasicMode(int state) {
-
-	// with these we make the non experiment mode both manual and auto to be able to set the throttle or rpm without running an experiment
-
     if (state == Qt::Checked) {
         mode = "AUTO";
         qDebug() << "Mode changed to AUTO";
 
-        if (function_mode == "Basic" && !experiment_running) { // thelw na mhn afhnei na to treksw an hdh trexw experiment
-            basic_auto_timer->start(); // ξεκιναει το timer
-        }
-
-        if (slider_opener_button) {
-            slider_opener_button->setText("Set RPM");
+        if (function_mode == "Basic" && !experiment_running) {
+            basic_auto_timer->start();
         }
     }
     else if (state == Qt::Unchecked) {
         mode = "MANUAL";
         qDebug() << "Mode changed to MANUAL";
-
         basic_auto_timer->stop();
-
-        if (slider_opener_button) {
-            slider_opener_button->setText("Set Throttle");
-        }
     }
 
     emit modeChanged(mode);
-} 
+}
 
 void BackendHandler::handleAutoMode() {
 
@@ -545,7 +525,7 @@ void BackendHandler::handleAutoMode() {
    }
 }
 
-// αυτες οι 2 πρεπει να φυγουνε
+/*
 void BackendHandler::createSliderWindow() {
     if (slider_window) {
         slider_window->raise();
@@ -694,27 +674,15 @@ void BackendHandler::openSliderWindow() {
         playAudio(audio_click_sfx_volume, "TurnOffExperimentFirst");
     }
 }
-
-void BackendHandler::updateSliderValue(int sliderValue) {
-    double ingoingValue = static_cast<double>(sliderValue);
-    QString payload;
-
+*/
+void BackendHandler::applySliderControlValue(int value) {
+    qDebug() << "Slider moved! Mode:" << mode << "Value:" << value << "Topic:" << mqttcfg.mqtt_send_topic;
     if (mode == "MANUAL") {
-        double slider_stored_value = ingoingValue;
-
-        if (slider_value_label) {
-            double pct = qMax(0.0, getThrottlePercentage(sliderValue));
-            slider_value_label->setText(QString::number(pct, 'f', 2) + " %");
-        }
-
-        publishThrottle(static_cast<int>(slider_stored_value));
+        slider_stored_value = static_cast<double>(value);
+        publishThrottle(value);
     }
     else if (mode == "AUTO") {
-        target_rpm = ingoingValue;
-
-        if (slider_value_label) {
-            slider_value_label->setText(QString::number(target_rpm, 'f', 0) + " rpm");
-        }
+        target_rpm = static_cast<double>(value);
     }
 }
 

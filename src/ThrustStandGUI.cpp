@@ -26,6 +26,7 @@ ThrustStandGUI::ThrustStandGUI(QWidget* parent) : QMainWindow(parent)
     connect(backend_handler, &BackendHandler::loggingStateChanged, this, [this](bool) { this->updateBottomToolbar(); });
     connect(backend_handler, &BackendHandler::armedStateChanged, this, &ThrustStandGUI::updateArmedState);
     connect(backend_handler, &BackendHandler::experimentFinished, this, &ThrustStandGUI::onExperimentFinished);
+    connect(backend_handler, &BackendHandler::requestSliderWindow, this, &ThrustStandGUI::open_slider_window);
     connect(graphic_timer, &QTimer::timeout, this, &ThrustStandGUI::graphicUpdates);
 }
 
@@ -35,6 +36,7 @@ ThrustStandGUI::~ThrustStandGUI()
 }
 
 // SYSTEM
+
 void ThrustStandGUI::keyPressEvent(QKeyEvent* event)
 {
     if (event->key() == Qt::Key_F11) {
@@ -310,6 +312,144 @@ void ThrustStandGUI::graphicUpdates() {
         powerGraph->addDataPoint(graphtimeCounter, tel.power);
         throttleGraph->addDataPoint(graphtimeCounter, throttle_percentage);
     }
+}
+
+void ThrustStandGUI::open_slider_window() {
+    if (backend_handler->experiment_running) {
+        backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "TurnOffExperimentFirst");
+        return;
+    }
+
+    backend_handler->playAudio(backend_handler->audio_click_sfx_volume, "MainClick");
+
+    const QString currentMode = backend_handler->getMode();
+    const bool isManual = (currentMode == "MANUAL");
+    const auto& cfg = backend_handler->cfg;
+    const auto& tel = backend_handler->tel;
+
+    QDialog slider_window(this, Qt::Window);
+    slider_window.setObjectName("ModernDialog");
+    slider_window.setWindowTitle(currentMode + " Mode Configuration");
+    slider_window.setFixedSize(620, 400);
+    slider_window.setAttribute(Qt::WA_StyledBackground, true);
+    slider_window.setWindowIcon(QIcon(ICONPATH));
+    slider_window.setStyleSheet(DIALOG_STYLE);
+
+    QVBoxLayout* layout = new QVBoxLayout(&slider_window);
+    layout->setContentsMargins(36, 30, 36, 30);
+    layout->setSpacing(14);
+
+    QLabel* title_label = new QLabel(isManual ? "SET THROTTLE" : "SET RPM", &slider_window);
+    title_label->setObjectName("DialogHeader");
+    QFont hf("Segoe UI", 15, QFont::DemiBold);
+    hf.setLetterSpacing(QFont::AbsoluteSpacing, 3);
+    title_label->setFont(hf);
+    title_label->setAlignment(Qt::AlignCenter);
+    layout->addWidget(title_label);
+
+    QLabel* slider_value_label = new QLabel(&slider_window);
+    slider_value_label->setFont(QFont("Segoe UI", 40, QFont::Bold));
+    slider_value_label->setAlignment(Qt::AlignCenter);
+    slider_value_label->setStyleSheet(QString("color: %1; background: transparent; border: none;").arg(THEME_COLOR));
+    slider_value_label->setMinimumHeight(70);
+    layout->addWidget(slider_value_label);
+
+    layout->addSpacing(6);
+
+    QSlider* slider = new QSlider(Qt::Horizontal, &slider_window);
+    slider->setSingleStep(1);
+    slider->setMinimumHeight(36);
+    slider->setCursor(Qt::PointingHandCursor);
+
+    QLineEdit* value_type_input_field = new QLineEdit(&slider_window);
+    value_type_input_field->setFixedSize(130, 40);
+    value_type_input_field->setAlignment(Qt::AlignCenter);
+
+    if (isManual) {
+        slider->setRange(cfg.min_throttle, cfg.max_throttle);
+        slider->setValue(std::clamp(tel.throttle, cfg.min_throttle, cfg.max_throttle));
+        value_type_input_field->setValidator(new QDoubleValidator((double)cfg.min_throttle, (double)cfg.max_throttle, 1, value_type_input_field));
+    }
+    else {
+        slider->setRange(0, cfg.max_rpm);
+        slider->setValue(std::clamp((int)backend_handler->getTargetRpm(), 0, (int)cfg.max_rpm));
+        value_type_input_field->setValidator(new QDoubleValidator(0, cfg.max_rpm, 1, value_type_input_field));
+    }
+
+    layout->addWidget(slider);
+
+    auto makeEndLabel = [&slider_window](const QString& text, Qt::Alignment al) {
+        QLabel* l = new QLabel(text, &slider_window);
+        l->setObjectName("SectionLabel");
+        l->setFont(QFont("Segoe UI", 10, QFont::DemiBold));
+        l->setAlignment(al);
+        return l;
+        };
+    const QString unitText = isManual ? "us" : "rpm";
+
+    QHBoxLayout* endsRow = new QHBoxLayout();
+    endsRow->addWidget(makeEndLabel(QString::number(slider->minimum()) + " " + unitText, Qt::AlignLeft | Qt::AlignVCenter));
+    endsRow->addStretch();
+    endsRow->addWidget(makeEndLabel(QString::number(slider->maximum()) + " " + unitText, Qt::AlignRight | Qt::AlignVCenter));
+    layout->addLayout(endsRow);
+
+    layout->addStretch();
+
+    QHBoxLayout* inputRow = new QHBoxLayout();
+    inputRow->setSpacing(10);
+    inputRow->addStretch();
+
+    QLabel* inputCaption = new QLabel("VALUE", &slider_window);
+    inputCaption->setObjectName("SectionLabel");
+    QFont cf("Segoe UI", 10, QFont::DemiBold);
+    cf.setLetterSpacing(QFont::AbsoluteSpacing, 2);
+    inputCaption->setFont(cf);
+
+    QLabel* inputUnit = new QLabel(unitText, &slider_window);
+    inputUnit->setObjectName("SectionLabel");
+    inputUnit->setFont(QFont("Segoe UI", 11, QFont::DemiBold));
+
+    inputRow->addWidget(inputCaption);
+    inputRow->addWidget(value_type_input_field);
+    inputRow->addWidget(inputUnit);
+    inputRow->addStretch();
+    layout->addLayout(inputRow);
+
+    QObject::connect(slider, &QSlider::valueChanged, &slider_window, [this, slider_value_label, value_type_input_field, isManual](int val) {
+        value_type_input_field->setText(QString::number(val));
+
+        if (isManual) {
+            double pct = qMax(0.0, backend_handler->getThrottlePercentage(val));
+            slider_value_label->setText(QString::number(pct, 'f', 2) + " %");
+        }
+        else {
+            slider_value_label->setText(QString::number(val) + " rpm");
+        }
+
+        backend_handler->applySliderControlValue(val);
+        });
+
+    QObject::connect(value_type_input_field, &QLineEdit::returnPressed, &slider_window, [slider, value_type_input_field]() {
+        bool ok;
+        double newValue = value_type_input_field->text().toDouble(&ok);
+        if (ok && newValue >= slider->minimum() && newValue <= slider->maximum()) {
+            slider->setValue(qRound(newValue));
+        }
+        else {
+            value_type_input_field->setText(QString::number(slider->value()));
+        }
+        });
+
+    value_type_input_field->setText(QString::number(slider->value()));
+    if (isManual) {
+        double pct = qMax(0.0, backend_handler->getThrottlePercentage(slider->value()));
+        slider_value_label->setText(QString::number(pct, 'f', 2) + " %");
+    }
+    else {
+        slider_value_label->setText(QString::number(backend_handler->getTargetRpm(), 'f', 0) + " rpm");
+    }
+
+    slider_window.exec();
 }
 
 void ThrustStandGUI::calibrate_parameters_window() {
@@ -873,11 +1013,6 @@ QFrame* ThrustStandGUI::createBottomToolbar() {
     return toolbarFrame;
 }
 
-void ThrustStandGUI::updateControllerIndicator() {
-    if (controllerIndicator)
-        controllerIndicator->setText("●  " + active_controller_name.toUpper());
-}
-
 void ThrustStandGUI::updateBottomToolbar() {
     if (current_scene == "GRAPH") second_icon_path = HOMEICONPATH;
     else second_icon_path = GRAPHICONPATH;
@@ -905,6 +1040,11 @@ void ThrustStandGUI::updateBottomToolbar() {
     if (loggingIconButton) loggingIconButton->setIcon(QIcon(logging_icon_path));
 }
 
+void ThrustStandGUI::updateControllerIndicator() {
+    if (controllerIndicator)
+        controllerIndicator->setText("●  " + active_controller_name.toUpper());
+}
+
 void ThrustStandGUI::changeFunctionMode() {
     QString function_mode = backend_handler->get_function_mode();
     if (lastFunctionModeChange.isValid() && lastFunctionModeChange.elapsed() < 100) {
@@ -924,6 +1064,7 @@ void ThrustStandGUI::changeFunctionMode() {
 }
 
 // DIFFERENT
+
 void ThrustStandGUI::updateControllers() {
 
     auto& ctrl = backend_handler->ctrl_cfg;

@@ -111,36 +111,37 @@ void Containers::setupControlElements() {
     controlLayout->setSpacing(20);
     controlLayout->setAlignment(Qt::AlignCenter);
 
-    QCheckBox* toggle_switch_widget = new QCheckBox("MANUAL Mode", control_frame);
-    toggle_switch_widget->setFixedSize(190, 34);
-    toggle_switch_widget->setStyleSheet(
+    const bool isAuto = (backend_handler && backend_handler->getMode() == "AUTO");
+
+    this->toggle_switch = new QCheckBox(isAuto ? "AUTO Mode" : "MANUAL Mode", control_frame);
+    this->toggle_switch->setFixedSize(190, 34);
+    this->toggle_switch->setChecked(isAuto);
+    this->toggle_switch->setStyleSheet(
         "QCheckBox { color: rgba(226,232,240,255); font-size: 14px; font-weight: 600; border: none; background: transparent; }"
         "QCheckBox::indicator { width: 20px; height: 20px; border-radius: 6px;"
         "                       border: 2px solid rgba(255,255,255,90); background: transparent; }"
         "QCheckBox::indicator:checked { background: " + QString(THEME_COLOR) + "; border-color: " + QString(THEME_COLOR) + "; }");
 
-
-    QObject::connect(toggle_switch_widget, &QCheckBox::checkStateChanged,
+    QObject::connect(this->toggle_switch, &QCheckBox::checkStateChanged,
         backend_handler, &BackendHandler::manualToggleBasicMode);
 
-    QPushButton* slider_opener_button_widget = new QPushButton("Set Throttle", control_frame);
-    slider_opener_button_widget->setFixedSize(150, 36);
-    slider_opener_button_widget->setCursor(Qt::PointingHandCursor);
-    slider_opener_button_widget->setStyleSheet(
+    this->slider_opener_button = new QPushButton(isAuto ? "Set RPM" : "Set Throttle", control_frame);
+    this->slider_opener_button->setFixedSize(150, 36);
+    this->slider_opener_button->setCursor(Qt::PointingHandCursor);
+    this->slider_opener_button->setStyleSheet(
         QString("QPushButton { background: %1; color: white; border: none; border-radius: 18px;"
             "              font-size: 14px; font-weight: 700; }"
             "QPushButton:hover { background: #38bdf8; }"
             "QPushButton:pressed { background: #0369a1; }").arg(THEME_COLOR));
 
-    QString buttonStyle = QString("QPushButton { background-color: %1; color: white; border-radius: 10px; font-weight: bold; }" "QPushButton:hover { background-color: blue; }").arg(THEME_COLOR);
+    QObject::connect(this->slider_opener_button, &QPushButton::clicked, this, [this]() {
+        if (backend_handler) {
+            emit backend_handler->requestSliderWindow();
+        }
+        });
 
-    QObject::connect(slider_opener_button_widget, &QPushButton::clicked,
-        backend_handler, &BackendHandler::openSliderWindow);
-
-    controlLayout->addWidget(toggle_switch_widget);
-    controlLayout->addWidget(slider_opener_button_widget);
-
-    backend_handler->slider_opener_button = slider_opener_button_widget;
+    controlLayout->addWidget(this->toggle_switch);
+    controlLayout->addWidget(this->slider_opener_button);
 
     if (layout()) {
         static_cast<QVBoxLayout*>(layout())->addWidget(control_frame, 0, Qt::AlignCenter);
@@ -223,19 +224,11 @@ void Containers::updateData(double newValue) {
 }
 
 void Containers::handleModeChange(const QString& newMode) {
-
-    if (control_frame && backend_handler) {
-
-        QCheckBox* toggle = control_frame->findChild<QCheckBox*>();
-        if (toggle) toggle->setText(newMode + " Mode");
-        QPushButton* opener = backend_handler->slider_opener_button;
-
-        if (opener) {
-            if (newMode == "MANUAL") {
-                opener->setText("Set Throttle");
-            }
-            else opener->setText("Set RPM");
-        }
+    if (this->toggle_switch) {
+        this->toggle_switch->setText(newMode + " Mode");
+    }
+    if (this->slider_opener_button) {
+        this->slider_opener_button->setText(newMode == "MANUAL" ? "Set Throttle" : "Set RPM");
     }
 }
 

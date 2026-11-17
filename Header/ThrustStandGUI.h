@@ -55,6 +55,7 @@ public:
     BackendHandler* backend_handler = nullptr;
 
 private slots:
+    void open_slider_window();
 
     void on_closing();
     void graphicUpdates();
